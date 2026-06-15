@@ -3,88 +3,6 @@ import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 
 const AuthContext = createContext(null);
 
-// Default mock teams to seed database if empty
-const defaultTeams = [
-  {
-    id: "alpha-tech",
-    name: "Alpha Tech",
-    login: "alphatech",
-    password: "at123",
-    color: "#2196F3", // azul
-    logo: `data:image/svg+xml;utf8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100%" height="100%" fill="#2196F3"/><text x="50%" y="55%" font-family="sans-serif" font-weight="bold" font-size="45" fill="white" dominant-baseline="middle" text-anchor="middle">AT</text></svg>')}`,
-    currentStage: 3,
-    stagesStatus: {
-      1: "completed",
-      2: "completed",
-      3: "in_progress",
-      4: "pending",
-      5: "pending",
-      6: "pending",
-      7: "pending",
-      8: "pending",
-      9: "pending",
-      10: "pending"
-    },
-    links: {
-      1: [
-        { id: "l1", title: "Lean Canvas Oficial", url: "https://docs.google.com/document/d/1" },
-        { id: "l2", title: "Mural de Brainstorm", url: "https://trello.com/b/1" }
-      ],
-      2: [
-        { id: "l3", title: "Protótipo Figma", url: "https://figma.com/file/1" }
-      ]
-    }
-  },
-  {
-    id: "eco-bag",
-    name: "Eco Bag",
-    login: "ecobag",
-    password: "eb123",
-    color: "#4CAF50", // verde
-    logo: `data:image/svg+xml;utf8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100%" height="100%" fill="#4CAF50"/><text x="50%" y="55%" font-family="sans-serif" font-weight="bold" font-size="45" fill="white" dominant-baseline="middle" text-anchor="middle">EB</text></svg>')}`,
-    currentStage: 1,
-    stagesStatus: {
-      1: "in_progress",
-      2: "pending",
-      3: "pending",
-      4: "pending",
-      5: "pending",
-      6: "pending",
-      7: "pending",
-      8: "pending",
-      9: "pending",
-      10: "pending"
-    },
-    links: {}
-  },
-  {
-    id: "smart-school",
-    name: "Smart School",
-    login: "smartschool",
-    password: "ss123",
-    color: "#FFC107", // amarelo
-    logo: `data:image/svg+xml;utf8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100%" height="100%" fill="#FFC107"/><text x="50%" y="55%" font-family="sans-serif" font-weight="bold" font-size="45" fill="white" dominant-baseline="middle" text-anchor="middle">SS</text></svg>')}`,
-    currentStage: 5,
-    stagesStatus: {
-      1: "completed",
-      2: "completed",
-      3: "completed",
-      4: "completed",
-      5: "in_progress",
-      6: "pending",
-      7: "pending",
-      8: "pending",
-      9: "pending",
-      10: "pending"
-    },
-    links: {
-      1: [{ id: "l4", title: "Google Drive Compartilhado", url: "https://drive.google.com/drive" }],
-      2: [{ id: "l5", title: "Canva Design Brandboard", url: "https://canva.com/design" }],
-      3: [{ id: "l6", title: "Estudo Financeiro", url: "https://docs.google.com/spreadsheets" }]
-    }
-  }
-];
-
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [teams, setTeams] = useState([]);
@@ -200,8 +118,7 @@ export const AuthProvider = ({ children }) => {
     if (savedTeams) {
       setTeams(JSON.parse(savedTeams));
     } else {
-      localStorage.setItem('mural_teams', JSON.stringify(defaultTeams));
-      setTeams(defaultTeams);
+      setTeams([]);
     }
   };
 
