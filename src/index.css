@@ -1,0 +1,214 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700;900&family=Inter:wght@400;500;600;700&display=swap');
+
+@theme {
+  --font-sans: 'Inter', sans-serif;
+  --font-display: 'Outfit', sans-serif;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #0b0f19;
+  color: #f8fafc;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  color: #f8fafc;
+}
+
+/* Custom Board game styles */
+.serpentine-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  column-gap: 2.5rem;
+  row-gap: 5rem;
+  position: relative;
+}
+
+/* Animations */
+@keyframes pulseGlow {
+  0% {
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.4);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(76, 175, 80, 0.7);
+    transform: scale(1.02);
+  }
+  100% {
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.4);
+    transform: scale(1);
+  }
+}
+
+.glow-active {
+  animation: pulseGlow 2.5s infinite ease-in-out;
+}
+
+/* Confetti particles */
+.confetti {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background-color: #f00;
+  border-radius: 50%;
+  animation: confetti-fall 3s linear infinite;
+  pointer-events: none;
+  z-index: 100;
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(-50px) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+/* Board connection arrows styling */
+.arrow-svg {
+  stroke-dasharray: 8;
+  animation: dash 1.5s linear infinite;
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: -16;
+  }
+}
+
+/* Slide animation for team avatars */
+.team-avatar-transition {
+  transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Crown float animation */
+@keyframes floatCrown {
+  0% { transform: translateY(0) rotate(-5deg); }
+  50% { transform: translateY(-4px) rotate(5deg); }
+  100% { transform: translateY(0) rotate(-5deg); }
+}
+
+.crown-float {
+  animation: floatCrown 2s infinite ease-in-out;
+}
+
+/* Shine effect for badges */
+@keyframes shine {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+.badge-shine::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.3) 30%,
+    rgba(255, 255, 255, 0.3) 70%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: skewX(-25deg);
+  animation: shine 3s infinite ease-in-out;
+}
+
+/* Redesign Trail Styles */
+.title-cartoon-3d {
+  font-family: var(--font-display);
+  font-weight: 900;
+  text-transform: uppercase;
+  color: white;
+  text-shadow: 
+    -2px -2px 0 #1e293b,  
+     2px -2px 0 #1e293b,
+    -2px  2px 0 #1e293b,
+     2px  2px 0 #1e293b,
+     4px  4px 0 #1e293b,
+     6px  6px 0 rgba(30, 41, 59, 0.15);
+}
+
+.trail-arrow-right {
+  clip-path: polygon(0% 0%, calc(100% - 18px) 0%, 100% 50%, calc(100% - 18px) 100%, 0% 100%, 18px 50%);
+}
+
+.trail-arrow-right-start {
+  clip-path: polygon(0% 0%, calc(100% - 18px) 0%, 100% 50%, calc(100% - 18px) 100%, 0% 100%);
+}
+
+.trail-arrow-left {
+  clip-path: polygon(18px 0%, 100% 0%, calc(100% - 18px) 50%, 100% 100%, 18px 100%, 0% 50%);
+}
+
+.trail-arrow-left-start {
+  clip-path: polygon(0% 0%, 100% 0%, calc(100% - 18px) 50%, 100% 100%, 0% 100%);
+}
+
+/* Winding pathway SVG animation */
+.trail-road {
+  stroke-dasharray: 12, 12;
+  animation: road-flow 2s linear infinite;
+}
+
+@keyframes road-flow {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+/* Neo-Brutalist styles */
+.neo-border {
+  border: 3px solid #0f172a;
+}
+
+.neo-shadow {
+  box-shadow: 4px 4px 0px 0px #0f172a;
+}
+
+.neo-shadow-lg {
+  box-shadow: 8px 8px 0px 0px #0f172a;
+}
+
+.neo-shadow-sm {
+  box-shadow: 2px 2px 0px 0px #0f172a;
+}
+
+.neo-interactive {
+  transition: all 0.15s ease-in-out;
+}
+
+.neo-interactive:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px 0px #0f172a;
+}
+
+.neo-interactive:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0px 0px #0f172a;
+}
+
+@keyframes avatarBlinkGlow {
+  0%, 100% {
+    box-shadow: 0 0 6px var(--avatar-color, #fff);
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    box-shadow: 0 0 24px var(--avatar-color, #fff), 0 0 36px var(--avatar-color, #fff);
+    transform: translate(-50%, -50%) scale(1.08);
+  }
+}
+
+.avatar-pulsing {
+  animation: avatarBlinkGlow 2s infinite ease-in-out;
+}
+
+
