@@ -116,7 +116,15 @@ export const AuthProvider = ({ children }) => {
   const loadLocalTeams = () => {
     const savedTeams = localStorage.getItem('mural_teams');
     if (savedTeams) {
-      setTeams(JSON.parse(savedTeams));
+      const parsed = JSON.parse(savedTeams);
+      const hasMockTeams = parsed.some(t => ['alpha-tech', 'eco-bag', 'smart-school'].includes(t.id));
+      if (hasMockTeams) {
+        localStorage.removeItem('mural_teams');
+        localStorage.removeItem('mural_deliverables');
+        setTeams([]);
+      } else {
+        setTeams(parsed);
+      }
     } else {
       setTeams([]);
     }
@@ -132,7 +140,14 @@ export const AuthProvider = ({ children }) => {
     const savedDeliverables = localStorage.getItem('mural_deliverables');
     if (savedDeliverables) {
       try {
-        setDeliverables(JSON.parse(savedDeliverables));
+        const parsed = JSON.parse(savedDeliverables);
+        const teamsData = localStorage.getItem('mural_teams');
+        const hasMockTeams = teamsData && JSON.parse(teamsData).some(t => ['alpha-tech', 'eco-bag', 'smart-school'].includes(t.id));
+        if (hasMockTeams) {
+          localStorage.removeItem('mural_deliverables');
+        } else {
+          setDeliverables(parsed);
+        }
       } catch (e) {
         setDeliverables([]);
       }
