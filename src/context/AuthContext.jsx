@@ -28,7 +28,7 @@ export const AuthProvider = ({ children }) => {
 
       if (teamsError) throw teamsError;
 
-      let dbDeliverables = [];
+      let dbDeliverables = null;
       try {
         const { data, error } = await supabase
           .from('team_stage_deliverables')
@@ -40,67 +40,74 @@ export const AuthProvider = ({ children }) => {
         console.warn("Table team_stage_deliverables may not exist yet:", err);
       }
 
-      setDeliverables(dbDeliverables.map(d => ({
-        teamId: d.team_id,
-        stageId: d.stage_id,
-        itemName: d.item_name,
-        content: d.content,
-        approved: d.approved,
-        feedback: d.feedback || ''
-      })));
-      localStorage.setItem('mural_deliverables', JSON.stringify(dbDeliverables.map(d => ({
-        teamId: d.team_id,
-        stageId: d.stage_id,
-        itemName: d.item_name,
-        content: d.content,
-        approved: d.approved,
-        feedback: d.feedback || ''
-      }))));
+      if (dbDeliverables) {
+        const mapped = dbDeliverables.map(d => ({
+          teamId: d.team_id,
+          stageId: d.stage_id,
+          itemName: d.item_name,
+          content: d.content,
+          approved: d.approved,
+          feedback: d.feedback || ''
+        }));
+        setDeliverables(mapped);
+        localStorage.setItem('mural_deliverables', JSON.stringify(mapped));
+      }
 
-      // Fetch custom details
-      let dbDetails = {};
+      // Fetch custom details (only if table exists)
       try {
         const { data, error } = await supabase
           .from('custom_stage_details')
           .select('*');
-        if (!error && data) {
+        if (!error && data && data.length > 0) {
+          const dbDetails = {};
           data.forEach(item => {
             if (!dbDetails[item.stage_id]) {
               dbDetails[item.stage_id] = [];
             }
             dbDetails[item.stage_id].push(item.item_name);
           });
+
+          const finalStageDetails = {};
+          initialStages.forEach(s => {
+            finalStageDetails[s.id] = [...s.details];
+            if (dbDetails[s.id]) {
+              dbDetails[s.id].forEach(item => {
+                if (!finalStageDetails[s.id].map(name => name.toUpperCase()).includes(item.toUpperCase())) {
+                  finalStageDetails[s.id].push(item);
+                }
+              });
+            }
+          });
+          setStageDetails(finalStageDetails);
+          localStorage.setItem('mural_stage_details', JSON.stringify(finalStageDetails));
         }
       } catch (err) {
         console.warn("Table custom_stage_details might not exist yet:", err);
       }
 
-      // Initialize all stages with their baseline details plus any custom ones fetched
-      const finalStageDetails = {};
-      initialStages.forEach(s => {
-        finalStageDetails[s.id] = [...s.details];
-        if (dbDetails[s.id]) {
-          dbDetails[s.id].forEach(item => {
-            if (!finalStageDetails[s.id].map(name => name.toUpperCase()).includes(item.toUpperCase())) {
-              finalStageDetails[s.id].push(item);
-            }
-          });
+      let dbStages = [];
+      try {
+        const { data, error } = await supabase
+          .from('stages_status')
+          .select('*');
+        if (!error && data) {
+          dbStages = data;
         }
-      });
-      setStageDetails(finalStageDetails);
-      localStorage.setItem('mural_stage_details', JSON.stringify(finalStageDetails));
+      } catch (err) {
+        console.warn("Table stages_status may not exist yet:", err);
+      }
 
-      const { data: dbStages, error: stagesError } = await supabase
-        .from('stages_status')
-        .select('*');
-
-      if (stagesError) throw stagesError;
-
-      const { data: dbLinks, error: linksError } = await supabase
-        .from('links')
-        .select('*');
-
-      if (linksError) throw linksError;
+      let dbLinks = [];
+      try {
+        const { data, error } = await supabase
+          .from('links')
+          .select('*');
+        if (!error && data) {
+          dbLinks = data;
+        }
+      } catch (err) {
+        console.warn("Table links may not exist yet:", err);
+      }
 
       // Map tabular DB structure back to clean nested UI format
       const mappedTeams = dbTeams.map(team => {
