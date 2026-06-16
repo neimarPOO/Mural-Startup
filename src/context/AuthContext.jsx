@@ -42,7 +42,7 @@ export const AuthProvider = ({ children }) => {
         console.warn("Table team_stage_deliverables may not exist yet:", err);
       }
 
-      if (deliverableFetchOk) {
+      if (deliverableFetchOk && dbDeliverables.length > 0) {
         const mapped = dbDeliverables.map(d => ({
           teamId: d.team_id,
           stageId: d.stage_id,
@@ -396,7 +396,46 @@ export const AuthProvider = ({ children }) => {
         const { error: statusErr } = await supabase
           .from('stages_status')
           .upsert({ team_id: teamId, stage_id: stageNum, status }, { onConflict: 'team_id,stage_id' });
-        if (statusErr) throw statusErr;
+
+        if (statusErr) {
+          if (statusErr.code === '23503') {
+            const { error: insertErr } = await supabase
+              .from('teams')
+              .insert({
+                id: teamId,
+                name: team.name,
+                login: team.login || '',
+                password: team.password || '',
+                color: team.color || '#6366f1',
+                logo: team.logo || '',
+                members: team.members || '',
+                current_stage: newCurrentStage
+              });
+            if (insertErr) throw insertErr;
+
+            const { error: retryErr } = await supabase
+              .from('stages_status')
+              .upsert({ team_id: teamId, stage_id: stageNum, status }, { onConflict: 'team_id,stage_id' });
+            if (retryErr) throw retryErr;
+
+            const teamDeliverables = deliverables.filter(d => d.teamId === teamId);
+            for (const del of teamDeliverables) {
+              await supabase
+                .from('team_stage_deliverables')
+                .upsert({
+                  team_id: del.teamId,
+                  stage_id: del.stageId,
+                  item_name: del.itemName,
+                  content: del.content,
+                  approved: del.approved,
+                  feedback: del.feedback || '',
+                  updated_at: new Date().toISOString()
+                }, { onConflict: 'team_id,stage_id,item_name' });
+            }
+          } else {
+            throw statusErr;
+          }
+        }
 
         const { error: teamErr } = await supabase
           .from('teams')
@@ -407,6 +446,7 @@ export const AuthProvider = ({ children }) => {
         await fetchSupabaseTeams();
       } catch (err) {
         console.error('Erro ao atualizar etapa no Supabase, usando local:', err);
+        alert(`Erro do Supabase ao atualizar etapa da equipe: ${err.message || JSON.stringify(err)}. A etapa foi salva apenas localmente.`);
         const updatedTeams = teams.map(t => {
           if (t.id === teamId) {
             return {
@@ -597,12 +637,14 @@ export const AuthProvider = ({ children }) => {
   };
 
   const saveDeliverable = async (teamId, stageId, itemName, content) => {
-    const existing = deliverables.find(d => d.teamId === teamId && d.stageId === parseInt(stageId) && d.itemName === itemName);
+    const stageNum = parseInt(stageId);
+    const team = teams.find(t => t.id === teamId);
+    const existing = deliverables.find(d => d.teamId === teamId && d.stageId === stageNum && d.itemName === itemName);
     const feedback = existing ? (existing.feedback || '') : '';
 
     const newDeliverable = {
       teamId,
-      stageId: parseInt(stageId),
+      stageId: stageNum,
       itemName,
       content,
       approved: false,
@@ -610,27 +652,123 @@ export const AuthProvider = ({ children }) => {
     };
 
     setDeliverables(prev => {
-      const filtered = prev.filter(d => !(d.teamId === teamId && d.stageId === parseInt(stageId) && d.itemName === itemName));
+      const filtered = prev.filter(d => !(d.teamId === teamId && d.stageId === stageNum && d.itemName === itemName));
       const next = [...filtered, newDeliverable];
       localStorage.setItem('mural_deliverables', JSON.stringify(next));
       return next;
     });
 
+    // Check if stage reversion is needed
+    let revertStageNeeded = false;
+    let newCurrentStage = team ? team.currentStage : 1;
+
+    if (team) {
+      if (team.stagesStatus[stageNum] === 'completed' || stageNum < team.currentStage) {
+        revertStageNeeded = true;
+      }
+    }
+
+    if (revertStageNeeded && team) {
+      const newStagesStatus = { ...team.stagesStatus, [stageNum]: 'in_progress' };
+      
+      // Recalculate current stage based on new stagesStatus
+      let inProgressStage = null;
+      let highestCompleted = 0;
+      for (let i = 1; i <= 10; i++) {
+        if (newStagesStatus[i] === 'in_progress') {
+          if (inProgressStage === null || i < inProgressStage) {
+            inProgressStage = i;
+          }
+        } else if (newStagesStatus[i] === 'completed') {
+          highestCompleted = i;
+        }
+      }
+      if (inProgressStage !== null) {
+        newCurrentStage = inProgressStage;
+      } else {
+        newCurrentStage = Math.min(highestCompleted + 1, 10);
+      }
+
+      // Update local state for immediate feedback
+      const updatedTeams = teams.map(t => {
+        if (t.id === teamId) {
+          return {
+            ...t,
+            currentStage: newCurrentStage,
+            stagesStatus: newStagesStatus
+          };
+        }
+        return t;
+      });
+      setTeams(updatedTeams);
+      localStorage.setItem('mural_teams', JSON.stringify(updatedTeams));
+    }
+
     if (isSupabaseConfigured) {
       try {
-        await supabase
+        const { error: delErr } = await supabase
           .from('team_stage_deliverables')
           .upsert({
             team_id: teamId,
-            stage_id: parseInt(stageId),
+            stage_id: stageNum,
             item_name: itemName,
             content: content,
             approved: false,
             feedback: feedback,
             updated_at: new Date().toISOString()
-          });
+          }, { onConflict: 'team_id,stage_id,item_name' });
+
+        if (delErr) {
+          if (delErr.code === '23503' && team) {
+            await supabase
+              .from('teams')
+              .upsert({
+                id: teamId,
+                name: team.name,
+                login: team.login || '',
+                password: team.password || '',
+                color: team.color || '#6366f1',
+                logo: team.logo || '',
+                members: team.members || '',
+                current_stage: team.currentStage || 1
+              }, { onConflict: 'id' });
+
+            const { error: retryErr } = await supabase
+              .from('team_stage_deliverables')
+              .upsert({
+                team_id: teamId,
+                stage_id: stageNum,
+                item_name: itemName,
+                content: content,
+                approved: false,
+                feedback: feedback,
+                updated_at: new Date().toISOString()
+              }, { onConflict: 'team_id,stage_id,item_name' });
+
+            if (retryErr) throw retryErr;
+          } else {
+            throw delErr;
+          }
+        }
+
+        // If stage needs to be reverted, update stages_status and teams in Supabase
+        if (revertStageNeeded && team) {
+          const { error: statusErr } = await supabase
+            .from('stages_status')
+            .upsert({ team_id: teamId, stage_id: stageNum, status: 'in_progress' }, { onConflict: 'team_id,stage_id' });
+          if (statusErr) throw statusErr;
+
+          const { error: teamErr } = await supabase
+            .from('teams')
+            .update({ current_stage: newCurrentStage })
+            .eq('id', teamId);
+          if (teamErr) throw teamErr;
+        }
+
+        await fetchSupabaseTeams();
       } catch (err) {
         console.error('Erro ao salvar entregável no Supabase:', err);
+        alert(`Erro do Supabase ao salvar tarefa: ${err.message || JSON.stringify(err)}. A tarefa foi salva apenas localmente.`);
       }
     }
   };
@@ -653,7 +791,7 @@ export const AuthProvider = ({ children }) => {
 
     if (isSupabaseConfigured) {
       try {
-        await supabase
+        const { error: appErr } = await supabase
           .from('team_stage_deliverables')
           .upsert({
             team_id: teamId,
@@ -663,9 +801,42 @@ export const AuthProvider = ({ children }) => {
             approved: approvedStatus,
             feedback: feedback,
             updated_at: new Date().toISOString()
-          });
+          }, { onConflict: 'team_id,stage_id,item_name' });
+
+        if (appErr && appErr.code === '23503') {
+          const team = teams.find(t => t.id === teamId);
+          if (team) {
+            await supabase
+              .from('teams')
+              .upsert({
+                id: teamId,
+                name: team.name,
+                login: team.login || '',
+                password: team.password || '',
+                color: team.color || '#6366f1',
+                logo: team.logo || '',
+                members: team.members || '',
+                current_stage: team.currentStage || 1
+              }, { onConflict: 'id' });
+
+            await supabase
+              .from('team_stage_deliverables')
+              .upsert({
+                team_id: teamId,
+                stage_id: parseInt(stageId),
+                item_name: itemName,
+                content: content,
+                approved: approvedStatus,
+                feedback: feedback,
+                updated_at: new Date().toISOString()
+              }, { onConflict: 'team_id,stage_id,item_name' });
+          }
+        } else if (appErr) {
+          throw appErr;
+        }
       } catch (err) {
         console.error('Erro ao aprovar entregável no Supabase:', err);
+        alert(`Erro do Supabase ao aprovar tarefa: ${err.message || JSON.stringify(err)}`);
       }
     }
   };
@@ -693,7 +864,7 @@ export const AuthProvider = ({ children }) => {
 
     if (isSupabaseConfigured) {
       try {
-        await supabase
+        const { error: fbErr } = await supabase
           .from('team_stage_deliverables')
           .upsert({
             team_id: teamId,
@@ -703,9 +874,42 @@ export const AuthProvider = ({ children }) => {
             approved: approved,
             feedback: feedbackText,
             updated_at: new Date().toISOString()
-          });
+          }, { onConflict: 'team_id,stage_id,item_name' });
+
+        if (fbErr && fbErr.code === '23503') {
+          const team = teams.find(t => t.id === teamId);
+          if (team) {
+            await supabase
+              .from('teams')
+              .upsert({
+                id: teamId,
+                name: team.name,
+                login: team.login || '',
+                password: team.password || '',
+                color: team.color || '#6366f1',
+                logo: team.logo || '',
+                members: team.members || '',
+                current_stage: team.currentStage || 1
+              }, { onConflict: 'id' });
+
+            await supabase
+              .from('team_stage_deliverables')
+              .upsert({
+                team_id: teamId,
+                stage_id: parseInt(stageId),
+                item_name: itemName,
+                content: content,
+                approved: approved,
+                feedback: feedbackText,
+                updated_at: new Date().toISOString()
+              }, { onConflict: 'team_id,stage_id,item_name' });
+          }
+        } else if (fbErr) {
+          throw fbErr;
+        }
       } catch (err) {
         console.error('Erro ao salvar feedback no Supabase:', err);
+        alert(`Erro do Supabase ao salvar feedback: ${err.message || JSON.stringify(err)}`);
       }
     }
   };
