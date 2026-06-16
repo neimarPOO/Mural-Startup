@@ -625,6 +625,7 @@ export const AuthProvider = ({ children }) => {
         await fetchSupabaseTeams();
       } catch (err) {
         console.error('Erro ao deletar equipe no Supabase, usando local:', err);
+        alert(`Erro do Supabase ao excluir equipe: ${err.message || JSON.stringify(err)}. A equipe foi removida apenas localmente.`);
         const updatedTeams = teams.filter(t => t.id !== teamId);
         setTeams(updatedTeams);
         localStorage.setItem('mural_teams', JSON.stringify(updatedTeams));
