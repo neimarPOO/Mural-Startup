@@ -28,19 +28,21 @@ export const AuthProvider = ({ children }) => {
 
       if (teamsError) throw teamsError;
 
-      let dbDeliverables = null;
+      let dbDeliverables = undefined;
+      let deliverableFetchOk = false;
       try {
         const { data, error } = await supabase
           .from('team_stage_deliverables')
           .select('*');
         if (!error && data) {
           dbDeliverables = data;
+          deliverableFetchOk = true;
         }
       } catch (err) {
         console.warn("Table team_stage_deliverables may not exist yet:", err);
       }
 
-      if (dbDeliverables) {
+      if (deliverableFetchOk) {
         const mapped = dbDeliverables.map(d => ({
           teamId: d.team_id,
           stageId: d.stage_id,
@@ -149,9 +151,14 @@ export const AuthProvider = ({ children }) => {
         };
       });
 
-      setTeams(mappedTeams);
-      // Keep local storage updated as backup
-      localStorage.setItem('mural_teams', JSON.stringify(mappedTeams));
+      if (mappedTeams.length > 0) {
+        setTeams(mappedTeams);
+        localStorage.setItem('mural_teams', JSON.stringify(mappedTeams));
+      } else {
+        // Tabelas existem mas estao vazias (ex: migration recem-aplicada).
+        // Preserva dados que estavam em localStorage.
+        loadLocalTeams();
+      }
     } catch (err) {
       console.error('Erro ao buscar dados do Supabase, usando fallback local:', err);
       loadLocalTeams();
