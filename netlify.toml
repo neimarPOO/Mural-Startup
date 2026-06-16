@@ -2,6 +2,13 @@
   command = "npm run build"
   publish = "dist"
 
+[build.environment]
+  VITE_SUPABASE_URL = "https://wbjxpnnglnmykdfasfgi.supabase.co"
+  VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indianhwbm5nbG5teWtkZmFzZmdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0OTcwMzYsImV4cCI6MjA5NzA3MzAzNn0.R0an5oimxGVM7zZ8Uetk3zBQx-l5gjGRySS4UJVm92g"
+  # VITE_ADMIN_USERNAME e VITE_ADMIN_PASSWORD:
+  # Configure pelo dashboard do Netlify: Site > Site Settings > Environment Variables
+  # para nao expor a senha no repositorio.
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
