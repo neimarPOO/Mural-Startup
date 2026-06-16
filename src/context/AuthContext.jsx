@@ -333,6 +333,7 @@ export const AuthProvider = ({ children }) => {
         await fetchSupabaseTeams();
       } catch (err) {
         console.error('Erro ao adicionar equipe no Supabase, usando local:', err);
+        alert(`Erro do Supabase: ${err.message || err.details || JSON.stringify(err)}. A equipe foi salva temporariamente apenas no seu navegador local.`);
         const updatedTeams = [...teams, newTeam];
         setTeams(updatedTeams);
         localStorage.setItem('mural_teams', JSON.stringify(updatedTeams));
