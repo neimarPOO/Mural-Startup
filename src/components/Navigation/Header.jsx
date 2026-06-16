@@ -12,12 +12,18 @@ const Header = ({ onOpenAdmin, onOpenLogin, onOpenRegister }) => {
         <div className="text-center md:text-left flex flex-col items-center md:items-start gap-2">
           <h1 className="text-2xl md:text-3.5xl font-black tracking-wide leading-none select-none">
             <span className="text-[#38bdf8] title-cartoon-3d">PROJETO FINAL</span>{' '}
-            <span className="text-[#fb923c] title-cartoon-3d">ESCOLA STARTUP</span>{' '}
             <span className="text-[#4ade80] title-cartoon-3d">2026</span>
           </h1>
           <p className="text-[10px] md:text-xs font-black text-slate-300 uppercase tracking-widest mt-1">
             9 DE JUNHO - 22 DE AGOSTO
           </p>
+        </div>
+
+        {/* Institutional Logos / Apoio */}
+        <div className="flex items-center gap-5 my-2 md:my-0">
+          <img src="/Logos_Startup02.png" alt="Escola Startup" className="h-10 md:h-12 object-contain" />
+          <img src="/food_makers.png" alt="Food Makers" className="h-14 md:h-16 object-contain" />
+          <img src="/calabria.png" alt="Calabria" className="h-10 md:h-12 object-contain" />
         </div>
 
         {/* Auth status & actions */}
@@ -41,13 +47,22 @@ const Header = ({ onOpenAdmin, onOpenLogin, onOpenRegister }) => {
 
               {/* Admin Panel button */}
               {user.role === 'admin' && (
-                <button
-                  onClick={onOpenAdmin}
-                  className="flex items-center gap-1.5 bg-[#a78bfa] text-slate-900 border-2 border-slate-900 text-xs font-black px-4 py-2 rounded-none neo-shadow-sm neo-interactive"
-                >
-                  <PlusCircle className="w-4 h-4" />
-                  Cadastrar Equipe
-                </button>
+                <>
+                  <button
+                    onClick={onOpenAdmin}
+                    className="flex items-center gap-1.5 bg-[#a78bfa] text-slate-900 border-2 border-slate-900 text-xs font-black px-4 py-2 rounded-none neo-shadow-sm neo-interactive"
+                  >
+                    <Settings className="w-4 h-4" />
+                    Painel do Admin
+                  </button>
+                  <button
+                    onClick={onOpenAdmin}
+                    className="flex items-center gap-1.5 bg-[#818cf8] text-slate-900 border-2 border-slate-900 text-xs font-black px-4 py-2 rounded-none neo-shadow-sm neo-interactive"
+                  >
+                    <PlusCircle className="w-4 h-4" />
+                    Cadastrar Equipe
+                  </button>
+                </>
               )}
 
               {/* Logout button */}

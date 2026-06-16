@@ -265,7 +265,7 @@ const LoginModal = ({ onClose, startInRegister = false }) => {
         {/* Credentials guide for testing */}
         {!isRegister && (
           <div className="mt-6 pt-4 border-t-2 border-slate-950 text-[10px] text-slate-400 font-semibold text-center leading-relaxed">
-            <p>Coordenador: <b>admin</b> / <b>escola2026</b></p>
+            <p>Coordenador: use o login configurado no <b>.env</b></p>
             <p className="mt-1">Equipe Seed: <b>alphatech</b> / <b>at123</b> (ou crie nova via admin)</p>
           </div>
         )}

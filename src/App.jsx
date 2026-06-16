@@ -147,9 +147,29 @@ const AppContent = () => {
         />
       )}
 
-      {/* Simple elegant footer */}
-      <footer className="py-6 text-center text-xs text-slate-500 font-bold border-t border-slate-800 mt-8">
-        Mural Escola Startup 2026 © Todos os direitos reservados.
+      {/* Premium Footer with Institutional Logos */}
+      <footer className="py-8 bg-slate-950 border-t-4 border-slate-900 mt-12 px-6">
+        <div className="max-w-[1920px] mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="text-center md:text-left">
+            <p className="text-sm font-black text-white uppercase tracking-wider">
+              MURAL ESCOLA STARTUP 2026
+            </p>
+            <p className="text-xs text-slate-500 font-bold mt-1">
+              Todos os direitos reservados.
+            </p>
+          </div>
+          
+          <div className="flex flex-col items-center md:items-end gap-3">
+            <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">
+              Realização & Apoio Institucional
+            </span>
+            <div className="flex items-center gap-6">
+              <img src="/Logos_Startup02.png" alt="Logo Startup 02" className="h-14 md:h-18 object-contain hover:scale-105 transition-transform duration-200" />
+              <img src="/food_makers.png" alt="Food Makers" className="h-20 md:h-26 object-contain hover:scale-105 transition-transform duration-200" />
+              <img src="/calabria.png" alt="Calabria" className="h-14 md:h-18 object-contain hover:scale-105 transition-transform duration-200" />
+            </div>
+          </div>
+        </div>
       </footer>
     </div>
   );

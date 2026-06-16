@@ -65,7 +65,7 @@ const renderLinkIcon = (url) => {
 };
 
 const StageHubModal = ({ team, stageId, onClose }) => {
-  const { user, updateTeamLinks, updateTeamStage, deliverables } = useAuth();
+  const { user, updateTeamLinks, updateTeamStage, deliverables, stageDetails } = useAuth();
   const stage = stages.find(s => s.id === parseInt(stageId));
   const tool = defaultTools[stageId];
   
@@ -152,12 +152,12 @@ const StageHubModal = ({ team, stageId, onClose }) => {
     setError('');
 
     if (newStatus === 'completed') {
-      const stageDetails = stage?.details || [];
+      const activeDetails = (stageDetails && stageDetails[stageId]) || stage?.details || [];
       const stageDeliverables = deliverables.filter(
         d => d.teamId === team.id && d.stageId === parseInt(stageId)
       );
       
-      const allApproved = stageDetails.every(detail => {
+      const allApproved = activeDetails.every(detail => {
         const found = stageDeliverables.find(d => d.itemName.toUpperCase() === detail.toUpperCase());
         return found && found.approved;
       });
@@ -222,7 +222,7 @@ const StageHubModal = ({ team, stageId, onClose }) => {
           <div className="bg-slate-950/40 p-4 border-2 border-slate-950 neo-shadow">
             <h3 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2">📋 Itens a Produzir</h3>
             <div className="flex flex-wrap gap-2">
-              {stage?.details.map((detail, index) => (
+              {((stageDetails && stageDetails[stageId]) || stage?.details || []).map((detail, index) => (
                 <span key={index} className="bg-slate-800 border border-slate-700 text-slate-200 text-xs px-3 py-1 font-bold rounded-none uppercase">
                   {detail}
                 </span>

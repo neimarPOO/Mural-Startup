@@ -14,15 +14,25 @@ const presetColors = [
 ];
 
 const AdminPanel = ({ onClose }) => {
-  const { teams, addTeam, updateTeam, deleteTeam } = useAuth();
+  const { teams, addTeam, updateTeam, deleteTeam, stageDetails, addStageDetail, editStageDetail, deleteStageDetail } = useAuth();
   
-  const [editingTeam, setEditingTeam] = useState(null);
+   const [editingTeam, setEditingTeam] = useState(null);
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [color, setColor] = useState('#2196F3');
   const [logo, setLogo] = useState('');
   const [logoFileName, setLogoFileName] = useState('');
   const [error, setError] = useState('');
+  
+  // Custom details addition state
+  const [customStageId, setCustomStageId] = useState('1');
+  const [newDetailName, setNewDetailName] = useState('');
+  const [customDetailError, setCustomDetailError] = useState('');
+  const [customDetailSuccess, setCustomDetailSuccess] = useState('');
+
+  // Editing existing custom details
+  const [editingDetail, setEditingDetail] = useState(null); // { stageId, name }
+  const [editedDetailName, setEditedDetailName] = useState('');
 
   const handleEditClick = (team) => {
     setEditingTeam(team);
@@ -112,6 +122,71 @@ const AdminPanel = ({ onClose }) => {
       setColor('#2196F3');
       setLogo('');
       setLogoFileName('');
+    }
+  };
+
+  const handleAddCustomDetail = (e) => {
+    e.preventDefault();
+    setCustomDetailError('');
+    setCustomDetailSuccess('');
+
+    const trimmed = newDetailName.trim();
+    if (!trimmed) {
+      setCustomDetailError('Por favor, digite o nome da tarefa.');
+      return;
+    }
+
+    const sId = parseInt(customStageId);
+    const existing = stageDetails[sId] || [];
+    if (existing.map(name => name.toUpperCase()).includes(trimmed.toUpperCase())) {
+      setCustomDetailError('Esta tarefa já existe para essa etapa.');
+      return;
+    }
+
+    addStageDetail(sId, trimmed);
+    setNewDetailName('');
+    setCustomDetailSuccess('Nova tarefa criada com sucesso e adicionada ao card!');
+    setTimeout(() => setCustomDetailSuccess(''), 3000);
+  };
+
+  const handleEditCustomDetail = (e) => {
+    e.preventDefault();
+    setCustomDetailError('');
+    setCustomDetailSuccess('');
+
+    if (!editingDetail) return;
+
+    const trimmed = editedDetailName.trim();
+    if (!trimmed) {
+      setCustomDetailError('O nome da tarefa não pode ser vazio.');
+      return;
+    }
+
+    const { stageId, name: oldName } = editingDetail;
+    const existing = stageDetails[stageId] || [];
+    if (trimmed.toUpperCase() !== oldName.toUpperCase() && existing.map(name => name.toUpperCase()).includes(trimmed.toUpperCase())) {
+      setCustomDetailError('Já existe uma tarefa com esse nome para essa etapa.');
+      return;
+    }
+
+    editStageDetail(stageId, oldName, trimmed);
+    setEditingDetail(null);
+    setEditedDetailName('');
+    setCustomDetailSuccess('Tarefa atualizada com sucesso!');
+    setTimeout(() => setCustomDetailSuccess(''), 3000);
+  };
+
+  const handleDeleteCustomDetail = (stageId, detailName) => {
+    if (window.confirm(`Tem certeza que deseja excluir a tarefa "${detailName}" do card? Todos os entregáveis correspondentes das equipes serão perdidos permanentemente.`)) {
+      setCustomDetailError('');
+      setCustomDetailSuccess('');
+      deleteStageDetail(stageId, detailName);
+      if (editingDetail && editingDetail.stageId === stageId && editingDetail.name === detailName) {
+        setEditingDetail(null);
+        setEditedDetailName('');
+      }
+      setCustomDetailSuccess('Tarefa excluída com sucesso!');
+      setTimeout(() => setCustomDetailSuccess(''), 3000);
     }
   };
 
@@ -268,6 +343,156 @@ const AdminPanel = ({ onClose }) => {
               </button>
             )}
           </form>
+
+          {/* Custom Task Form / Edit Form */}
+          <div className="border-t-4 border-slate-950 mt-8 pt-6">
+            <h3 className="text-sm font-black text-white uppercase tracking-tight flex items-center gap-2">
+              <ShieldAlert className="w-5 h-5 text-indigo-400" />
+              {editingDetail ? 'Editar Tarefa (Legenda)' : 'Adicionar Nova Tarefa ao Card (Legendas)'}
+            </h3>
+            
+            {editingDetail ? (
+              <form onSubmit={handleEditCustomDetail} className="space-y-4 mt-4 bg-slate-850 p-4 border-2 border-slate-950 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                {customDetailError && (
+                  <div className="p-2.5 bg-red-950/40 border-2 border-red-900 text-red-200 rounded-none text-xs font-bold font-sans">
+                    ⚠️ {customDetailError}
+                  </div>
+                )}
+                
+                <div>
+                  <span className="block text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1">
+                    Editando na Etapa {editingDetail.stageId}
+                  </span>
+                  <label className="block text-[10px] font-black text-slate-300 uppercase tracking-wider mb-1">
+                    Nome da Tarefa:
+                  </label>
+                  <input
+                    type="text"
+                    value={editedDetailName}
+                    onChange={(e) => setEditedDetailName(e.target.value)}
+                    className="w-full bg-slate-800 border-2 border-slate-950 rounded-none px-3 py-1.5 text-xs font-semibold text-white focus:outline-none focus:bg-slate-950 transition-all"
+                  />
+                </div>
+
+                <div className="flex gap-2 justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={() => { setEditingDetail(null); setEditedDetailName(''); setCustomDetailError(''); }}
+                    className="bg-slate-800 hover:bg-slate-750 text-white text-[10px] font-black uppercase tracking-wider px-3 py-2 rounded-none border-2 border-slate-950"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-wider px-4 py-2 rounded-none border-2 border-slate-950 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[2px] active:translate-y-[2px]"
+                  >
+                    Salvar
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleAddCustomDetail} className="space-y-4 mt-4 bg-slate-850 p-4 border-2 border-slate-950 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                {customDetailError && (
+                  <div className="p-2.5 bg-red-950/40 border-2 border-red-900 text-red-200 rounded-none text-xs font-bold font-sans">
+                    ⚠️ {customDetailError}
+                  </div>
+                )}
+                {customDetailSuccess && (
+                  <div className="p-2.5 bg-emerald-950/40 border-2 border-emerald-900 text-emerald-200 rounded-none text-xs font-bold font-sans">
+                    ✓ {customDetailSuccess}
+                  </div>
+                )}
+
+                <div className="flex flex-col md:flex-row gap-4">
+                  {/* Select Stage */}
+                  <div className="flex-1">
+                    <label className="block text-[10px] font-black text-slate-300 uppercase tracking-wider mb-1">
+                      Selecionar Etapa / Card:
+                    </label>
+                    <select
+                      value={customStageId}
+                      onChange={(e) => setCustomStageId(e.target.value)}
+                      className="w-full bg-slate-800 border-2 border-slate-950 rounded-none px-3 py-2 text-xs font-bold text-white focus:outline-none"
+                    >
+                      <option value="1">Etapa 1: Lean Canvas</option>
+                      <option value="2">Etapa 2: Identidade Visual</option>
+                      <option value="3">Etapa 3: Modelo de Negócio</option>
+                      <option value="4">Etapa 4: Custos e Mercado</option>
+                      <option value="5">Etapa 5: Protótipos</option>
+                      <option value="6">Etapa 6: Testes</option>
+                      <option value="7">Etapa 7: Feedbacks Reais</option>
+                      <option value="8">Etapa 8: Iteração e Ajustes</option>
+                      <option value="9">Etapa 9: Estrutura do Pitch</option>
+                      <option value="10">Etapa 10: Pitch Final</option>
+                    </select>
+                  </div>
+
+                  {/* Task Name */}
+                  <div className="flex-2">
+                    <label className="block text-[10px] font-black text-slate-300 uppercase tracking-wider mb-1">
+                      Nome da Tarefa / Legenda:
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Parcerias, Custos Operacionais"
+                      value={newDetailName}
+                      onChange={(e) => setNewDetailName(e.target.value)}
+                      className="w-full bg-slate-800 border-2 border-slate-950 rounded-none px-3 py-1.5 text-xs font-semibold text-white focus:outline-none focus:bg-slate-950 transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="submit"
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-wider px-4 py-2 rounded-none border-2 border-slate-950 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all flex items-center gap-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Criar Tarefa
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* List existing details for selected stage */}
+            <div className="mt-4 space-y-2">
+              <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                Tarefas Existentes na Etapa {customStageId}:
+              </span>
+              <div className="bg-slate-950/20 border-2 border-slate-950 p-2 max-h-[140px] overflow-y-auto space-y-1.5">
+                {((stageDetails && stageDetails[parseInt(customStageId)]) || []).map((detail, index) => (
+                  <div key={index} className="flex items-center justify-between bg-slate-800 px-2 py-1 border border-slate-950">
+                    <span className="text-[10px] font-bold text-white uppercase truncate max-w-[180px]">
+                      {detail}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => { setEditingDetail({ stageId: parseInt(customStageId), name: detail }); setEditedDetailName(detail); setCustomDetailError(''); }}
+                        className="p-1 hover:bg-slate-700 text-indigo-400 border border-slate-950 bg-slate-900"
+                        title="Editar Tarefa"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteCustomDetail(parseInt(customStageId), detail)}
+                        className="p-1 hover:bg-slate-700 text-red-400 border border-slate-950 bg-slate-900"
+                        title="Excluir Tarefa"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {((stageDetails && stageDetails[parseInt(customStageId)]) || []).length === 0 && (
+                  <div className="text-center text-[10px] text-slate-500 font-bold py-2">
+                    Nenhuma tarefa cadastrada para esta etapa.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Right Side: Manage Existing Teams */}
@@ -308,7 +533,7 @@ const AdminPanel = ({ onClose }) => {
                       {t.name}
                     </h4>
                     <p className="text-[9px] text-slate-400 font-bold truncate">
-                      User: {t.login} | Senha: {t.password}
+                      Login: {t.login}
                     </p>
                   </div>
                 </div>

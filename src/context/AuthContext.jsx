@@ -1,12 +1,19 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { stages as initialStages } from '../data/stages';
 
 const AuthContext = createContext(null);
 
+// ATENÇÃO: Este app armazena senhas em plaintext no localStorage e no Supabase
+// por ser um ambiente educacional controlado. Para produção, implemente:
+// 1. Supabase Auth (autenticação gerenciada)
+// 2. Hash de senhas com bcrypt via Edge Functions
+// 3. Row Level Security nas tabelas
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [teams, setTeams] = useState([]);
   const [deliverables, setDeliverables] = useState([]);
+  const [stageDetails, setStageDetails] = useState({}); // format: { [stageId]: ["Detail1", "Detail2"] }
   const [showConfetti, setShowConfetti] = useState(false);
   const [loading, setLoading] = useState(isSupabaseConfigured);
 
@@ -49,6 +56,39 @@ export const AuthProvider = ({ children }) => {
         approved: d.approved,
         feedback: d.feedback || ''
       }))));
+
+      // Fetch custom details
+      let dbDetails = {};
+      try {
+        const { data, error } = await supabase
+          .from('custom_stage_details')
+          .select('*');
+        if (!error && data) {
+          data.forEach(item => {
+            if (!dbDetails[item.stage_id]) {
+              dbDetails[item.stage_id] = [];
+            }
+            dbDetails[item.stage_id].push(item.item_name);
+          });
+        }
+      } catch (err) {
+        console.warn("Table custom_stage_details might not exist yet:", err);
+      }
+
+      // Initialize all stages with their baseline details plus any custom ones fetched
+      const finalStageDetails = {};
+      initialStages.forEach(s => {
+        finalStageDetails[s.id] = [...s.details];
+        if (dbDetails[s.id]) {
+          dbDetails[s.id].forEach(item => {
+            if (!finalStageDetails[s.id].map(name => name.toUpperCase()).includes(item.toUpperCase())) {
+              finalStageDetails[s.id].push(item);
+            }
+          });
+        }
+      });
+      setStageDetails(finalStageDetails);
+      localStorage.setItem('mural_stage_details', JSON.stringify(finalStageDetails));
 
       const { data: dbStages, error: stagesError } = await supabase
         .from('stages_status')
@@ -153,6 +193,27 @@ export const AuthProvider = ({ children }) => {
       }
     }
 
+    const savedStageDetails = localStorage.getItem('mural_stage_details');
+    if (savedStageDetails) {
+      try {
+        setStageDetails(JSON.parse(savedStageDetails));
+      } catch (e) {
+        // Build initial object
+        const baseline = {};
+        initialStages.forEach(s => {
+          baseline[s.id] = [...s.details];
+        });
+        setStageDetails(baseline);
+      }
+    } else {
+      const baseline = {};
+      initialStages.forEach(s => {
+        baseline[s.id] = [...s.details];
+      });
+      setStageDetails(baseline);
+      localStorage.setItem('mural_stage_details', JSON.stringify(baseline));
+    }
+
     if (isSupabaseConfigured) {
       fetchSupabaseTeams();
     } else {
@@ -170,9 +231,14 @@ export const AuthProvider = ({ children }) => {
 
   const login = (username, password) => {
     const lowerUsername = username.trim().toLowerCase();
-    
-    // Check Admin login
-    if (lowerUsername === 'admin' && password === 'escola2026') {
+
+    // Check Admin login (from environment variables)
+    const adminUsername = (import.meta.env.VITE_ADMIN_USERNAME || 'admin').toLowerCase();
+    const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD;
+    if (!adminPassword) {
+      console.warn('VITE_ADMIN_PASSWORD não configurada no .env');
+    }
+    if (lowerUsername === adminUsername && password === adminPassword) {
       const adminUser = { role: 'admin', name: 'Administrador' };
       setUser(adminUser);
       localStorage.setItem('mural_user', JSON.stringify(adminUser));
@@ -629,11 +695,129 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const addStageDetail = async (stageId, detailName) => {
+    const sId = parseInt(stageId);
+    const trimmed = detailName.trim();
+    if (!trimmed) return;
+
+    setStageDetails(prev => {
+      const current = prev[sId] || [];
+      if (current.map(name => name.toUpperCase()).includes(trimmed.toUpperCase())) {
+        return prev;
+      }
+      const next = { ...prev, [sId]: [...current, trimmed] };
+      localStorage.setItem('mural_stage_details', JSON.stringify(next));
+      return next;
+    });
+
+    if (isSupabaseConfigured) {
+      try {
+        await supabase
+          .from('custom_stage_details')
+          .insert([{
+            stage_id: sId,
+            item_name: trimmed
+          }]);
+      } catch (err) {
+        console.error('Erro ao salvar nova legenda no Supabase:', err);
+      }
+    }
+  };
+
+  const editStageDetail = async (stageId, oldDetailName, newDetailName) => {
+    const sId = parseInt(stageId);
+    const oldTrimmed = oldDetailName.trim();
+    const newTrimmed = newDetailName.trim();
+    if (!oldTrimmed || !newTrimmed) return;
+
+    setStageDetails(prev => {
+      const current = prev[sId] || [];
+      const updated = current.map(item => item === oldTrimmed ? newTrimmed : item);
+      const next = { ...prev, [sId]: updated };
+      localStorage.setItem('mural_stage_details', JSON.stringify(next));
+      return next;
+    });
+
+    // Rename associated deliverables
+    setDeliverables(prev => {
+      const next = prev.map(d => {
+        if (d.stageId === sId && d.itemName === oldTrimmed) {
+          return { ...d, itemName: newTrimmed };
+        }
+        return d;
+      });
+      localStorage.setItem('mural_deliverables', JSON.stringify(next));
+      return next;
+    });
+
+    if (isSupabaseConfigured) {
+      try {
+        // Update custom detail item_name
+        await supabase
+          .from('custom_stage_details')
+          .update({ item_name: newTrimmed })
+          .eq('stage_id', sId)
+          .eq('item_name', oldTrimmed);
+
+        // Update deliverables item_name
+        await supabase
+          .from('team_stage_deliverables')
+          .update({ item_name: newTrimmed })
+          .eq('stage_id', sId)
+          .eq('item_name', oldTrimmed);
+      } catch (err) {
+        console.error('Erro ao editar tarefa no Supabase:', err);
+      }
+    }
+  };
+
+  const deleteStageDetail = async (stageId, detailName) => {
+    const sId = parseInt(stageId);
+    const trimmed = detailName.trim();
+    if (!trimmed) return;
+
+    setStageDetails(prev => {
+      const current = prev[sId] || [];
+      const updated = current.filter(item => item !== trimmed);
+      const next = { ...prev, [sId]: updated };
+      localStorage.setItem('mural_stage_details', JSON.stringify(next));
+      return next;
+    });
+
+    // Delete associated deliverables
+    setDeliverables(prev => {
+      const next = prev.filter(d => !(d.stageId === sId && d.itemName === trimmed));
+      localStorage.setItem('mural_deliverables', JSON.stringify(next));
+      return next;
+    });
+
+    if (isSupabaseConfigured) {
+      try {
+        // Delete custom detail
+        await supabase
+          .from('custom_stage_details')
+          .delete()
+          .eq('stage_id', sId)
+          .eq('item_name', trimmed);
+
+        // Delete deliverables
+        await supabase
+          .from('team_stage_deliverables')
+          .delete()
+          .eq('stage_id', sId)
+          .eq('item_name', trimmed);
+      } catch (err) {
+        console.error('Erro ao excluir tarefa no Supabase:', err);
+      }
+    }
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
       teams,
       deliverables,
+      stageDetails,
       login,
       logout,
       addTeam,
@@ -644,6 +828,9 @@ export const AuthProvider = ({ children }) => {
       saveDeliverable,
       approveDeliverable,
       saveFeedback,
+      addStageDetail,
+      editStageDetail,
+      deleteStageDetail,
       showConfetti,
       triggerConfetti
     }}>

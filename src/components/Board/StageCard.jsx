@@ -16,10 +16,13 @@ const iconMap = {
 
 const StageCard = forwardRef(({ 
   stage, isActive, isCompleted, teamCount, onClick, onClickDetail, 
-  deliverables = [], selectedTeamId = null, direction = 'right' 
+  deliverables = [], stageDetails = null, selectedTeamId = null, direction = 'right' 
 }, ref) => {
   const IconComponent = iconMap[stage.iconType] || Icons.HelpCircle;
   const clipClass = direction === 'right' ? 'trail-arrow-right' : 'trail-arrow-left';
+  
+  // Resolve details list from context or fallback
+  const detailsList = (stageDetails && stageDetails[stage.id]) || stage.details || [];
 
   return (
     <div className="flex flex-col gap-2 relative">
@@ -81,7 +84,7 @@ const StageCard = forwardRef(({
 
       {/* Sub-items list / Details tags below the card */}
       <div className="flex flex-wrap gap-1 px-4 justify-center">
-        {stage.details.map((detail, idx) => {
+        {detailsList.map((detail, idx) => {
           const del = selectedTeamId 
             ? deliverables.find(
                 d => d.teamId === selectedTeamId && 
