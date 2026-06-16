@@ -22,7 +22,7 @@ const Header = ({ onOpenAdmin, onOpenLogin, onOpenRegister }) => {
         {/* Institutional Logos / Apoio */}
         <div className="flex items-center gap-5 my-2 md:my-0">
           <img src="/Logos_Startup02.png" alt="Escola Startup" className="h-10 md:h-12 object-contain" />
-          <img src="/food_makers.png" alt="Food Makers" className="h-14 md:h-16 object-contain" />
+          <img src="/food_makers.png" alt="Food Makers" className="h-16 md:h-20 object-contain" />
           <img src="/calabria.png" alt="Calabria" className="h-10 md:h-12 object-contain" />
         </div>
 
