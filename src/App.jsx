@@ -21,6 +21,7 @@ const AppContent = () => {
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [startInRegister, setStartInRegister] = useState(false);
+  const [adminSelectedTeamId, setAdminSelectedTeamId] = useState(null);
 
   const { deliverables } = useAuth();
 
@@ -74,12 +75,50 @@ const AppContent = () => {
           </div>
  
           {/* Interactive Mural Card */}
-          <div className="bg-slate-900 rounded-none neo-border p-4 neo-shadow">
+          <div className="bg-slate-900 rounded-none neo-border p-4 neo-shadow flex flex-col gap-4">
+            {/* Admin Team Task Inspector Selector */}
+            {user && user.role === 'admin' && (
+              <div className="p-3 bg-slate-950 border-2 border-slate-950 flex flex-col md:flex-row items-center justify-between gap-3 shadow-[2px_2px_0_0_#000]">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">
+                    Inspecionar Tarefas da Equipe (Admin):
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2 justify-center">
+                  <button
+                    onClick={() => setAdminSelectedTeamId(null)}
+                    className={`text-[10px] font-black px-3 py-1.5 rounded-none border-2 transition-all cursor-pointer ${
+                      !adminSelectedTeamId 
+                        ? 'bg-indigo-600 text-white border-indigo-700 shadow-[1.5px_1.5px_0_0_#000]' 
+                        : 'bg-slate-800 text-slate-300 border-slate-900 hover:bg-slate-700'
+                    }`}
+                  >
+                    Nenhuma (Padrão)
+                  </button>
+                  {teams.map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => setAdminSelectedTeamId(t.id)}
+                      className={`text-[10px] font-black px-3 py-1.5 rounded-none border-2 transition-all flex items-center gap-2 cursor-pointer ${
+                        adminSelectedTeamId === t.id 
+                          ? 'text-slate-950 shadow-[1.5px_1.5px_0_0_#000]' 
+                          : 'bg-slate-800 text-slate-300 border-slate-900 hover:bg-slate-700'
+                      }`}
+                      style={adminSelectedTeamId === t.id ? { backgroundColor: t.color, borderColor: '#000000' } : {}}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full border border-slate-950" style={{ backgroundColor: t.color }} />
+                      Equipe {t.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <Mural 
               onSelectTeam={(team) => setSelectedTeam(team)}
               onClickDetail={(stageId, item) => setActiveDetailItem({ stageId, itemName: item })}
               deliverables={deliverables}
-              selectedTeamId={currentSelectedTeam?.id || (user?.role === 'team' ? user.id : null)}
+              selectedTeamId={adminSelectedTeamId || currentSelectedTeam?.id || (user?.role === 'team' ? user.id : null)}
               onSelectStage={(stage) => {
                 setActiveStageId(stage.id);
                 
@@ -122,7 +161,11 @@ const AppContent = () => {
       {/* Item Detail Modal */}
       {activeDetailItem && (
         <ItemDetailModal
-          team={currentSelectedTeam || (user?.role === 'team' ? teams.find(t => t.id === user.id) : null)}
+          team={
+            currentSelectedTeam || 
+            (adminSelectedTeamId ? teams.find(t => t.id === adminSelectedTeamId) : null) || 
+            (user?.role === 'team' ? teams.find(t => t.id === user.id) : null)
+          }
           stageId={activeDetailItem.stageId}
           itemName={activeDetailItem.itemName}
           onClose={() => setActiveDetailItem(null)}
