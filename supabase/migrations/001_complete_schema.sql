@@ -2,6 +2,11 @@
 -- SCHEMA COMPLETO + RLS — Mural Escola Startup
 -- Execute no SQL Editor do Supabase Dashboard (uma vez)
 -- ============================================================
+-- IMPORTANTE: Este app usa a anon key do Supabase no cliente.
+-- As policies abaixo permitem operacoes para qualquer usuario
+-- autenticado como 'anon' (que e o caso da anon key).
+-- Para producao com autenticacao real, restrinja por auth.uid().
+-- ============================================================
 
 -- 1. teams
 CREATE TABLE IF NOT EXISTS teams (
@@ -19,9 +24,9 @@ CREATE TABLE IF NOT EXISTS teams (
 ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "teams_select_todos" ON teams FOR SELECT USING (true);
-CREATE POLICY "teams_insert_admin" ON teams FOR INSERT WITH CHECK (auth.role() = 'service_role');
-CREATE POLICY "teams_update_admin" ON teams FOR UPDATE USING (auth.role() = 'service_role');
-CREATE POLICY "teams_delete_admin" ON teams FOR DELETE USING (auth.role() = 'service_role');
+CREATE POLICY "teams_insert_todos" ON teams FOR INSERT WITH CHECK (true);
+CREATE POLICY "teams_update_todos" ON teams FOR UPDATE USING (true);
+CREATE POLICY "teams_delete_todos" ON teams FOR DELETE USING (true);
 
 -- 2. stages_status
 CREATE TABLE IF NOT EXISTS stages_status (
@@ -36,9 +41,9 @@ CREATE TABLE IF NOT EXISTS stages_status (
 ALTER TABLE stages_status ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "stages_status_select_todos" ON stages_status FOR SELECT USING (true);
-CREATE POLICY "stages_status_insert_admin" ON stages_status FOR INSERT WITH CHECK (auth.role() = 'service_role');
-CREATE POLICY "stages_status_upsert_admin" ON stages_status FOR UPDATE USING (auth.role() = 'service_role');
-CREATE POLICY "stages_status_delete_admin" ON stages_status FOR DELETE USING (auth.role() = 'service_role');
+CREATE POLICY "stages_status_insert_todos" ON stages_status FOR INSERT WITH CHECK (true);
+CREATE POLICY "stages_status_upsert_todos" ON stages_status FOR UPDATE USING (true);
+CREATE POLICY "stages_status_delete_todos" ON stages_status FOR DELETE USING (true);
 
 -- 3. team_stage_deliverables
 CREATE TABLE IF NOT EXISTS team_stage_deliverables (
@@ -56,9 +61,9 @@ CREATE TABLE IF NOT EXISTS team_stage_deliverables (
 ALTER TABLE team_stage_deliverables ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "deliverables_select_todos" ON team_stage_deliverables FOR SELECT USING (true);
-CREATE POLICY "deliverables_insert_own" ON team_stage_deliverables FOR INSERT WITH CHECK (auth.role() = 'service_role');
-CREATE POLICY "deliverables_update_admin" ON team_stage_deliverables FOR UPDATE USING (auth.role() = 'service_role');
-CREATE POLICY "deliverables_delete_admin" ON team_stage_deliverables FOR DELETE USING (auth.role() = 'service_role');
+CREATE POLICY "deliverables_insert_todos" ON team_stage_deliverables FOR INSERT WITH CHECK (true);
+CREATE POLICY "deliverables_update_todos" ON team_stage_deliverables FOR UPDATE USING (true);
+CREATE POLICY "deliverables_delete_todos" ON team_stage_deliverables FOR DELETE USING (true);
 
 -- 4. links
 CREATE TABLE IF NOT EXISTS links (
@@ -73,9 +78,9 @@ CREATE TABLE IF NOT EXISTS links (
 ALTER TABLE links ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "links_select_todos" ON links FOR SELECT USING (true);
-CREATE POLICY "links_insert_own" ON links FOR INSERT WITH CHECK (auth.role() = 'service_role');
-CREATE POLICY "links_update_own" ON links FOR UPDATE USING (auth.role() = 'service_role');
-CREATE POLICY "links_delete_own" ON links FOR DELETE USING (auth.role() = 'service_role');
+CREATE POLICY "links_insert_todos" ON links FOR INSERT WITH CHECK (true);
+CREATE POLICY "links_update_todos" ON links FOR UPDATE USING (true);
+CREATE POLICY "links_delete_todos" ON links FOR DELETE USING (true);
 
 -- 5. custom_stage_details
 CREATE TABLE IF NOT EXISTS custom_stage_details (
@@ -89,9 +94,9 @@ CREATE TABLE IF NOT EXISTS custom_stage_details (
 ALTER TABLE custom_stage_details ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "custom_details_select_todos" ON custom_stage_details FOR SELECT USING (true);
-CREATE POLICY "custom_details_insert_admin" ON custom_stage_details FOR INSERT WITH CHECK (auth.role() = 'service_role');
-CREATE POLICY "custom_details_update_admin" ON custom_stage_details FOR UPDATE USING (auth.role() = 'service_role');
-CREATE POLICY "custom_details_delete_admin" ON custom_stage_details FOR DELETE USING (auth.role() = 'service_role');
+CREATE POLICY "custom_details_insert_todos" ON custom_stage_details FOR INSERT WITH CHECK (true);
+CREATE POLICY "custom_details_update_todos" ON custom_stage_details FOR UPDATE USING (true);
+CREATE POLICY "custom_details_delete_todos" ON custom_stage_details FOR DELETE USING (true);
 
 -- 6. lean_canvas (sub-projeto Lean Canvas Interativo)
 CREATE TABLE IF NOT EXISTS lean_canvas (
@@ -106,14 +111,5 @@ CREATE TABLE IF NOT EXISTS lean_canvas (
 ALTER TABLE lean_canvas ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "lean_canvas_select_todos" ON lean_canvas FOR SELECT USING (true);
-CREATE POLICY "lean_canvas_upsert_own" ON lean_canvas FOR INSERT WITH CHECK (auth.role() = 'service_role');
-CREATE POLICY "lean_canvas_update_own" ON lean_canvas FOR UPDATE USING (auth.role() = 'service_role');
-
--- ============================================================
--- NOTAS:
--- - Todas as policies usam auth.role() = 'service_role' porque
---   o app atual usa anon key diretamente (sem Supabase Auth).
--- - Para produção completa, migre para Supabase Auth e use
---   auth.uid() nas policies referenciando teams.user_id.
--- - Remova o arquivo 001_rls_policies.sql (substituído por este).
--- ============================================================
+CREATE POLICY "lean_canvas_insert_todos" ON lean_canvas FOR INSERT WITH CHECK (true);
+CREATE POLICY "lean_canvas_update_todos" ON lean_canvas FOR UPDATE USING (true);
