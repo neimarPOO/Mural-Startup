@@ -14,9 +14,7 @@ const Header = ({ onOpenAdmin, onOpenLogin, onOpenRegister }) => {
             <span className="text-[#38bdf8] title-cartoon-3d">PROJETO FINAL</span>{' '}
             <span className="text-[#4ade80] title-cartoon-3d">2026</span>
           </h1>
-          <p className="text-[9px] md:text-xs font-black text-slate-300 uppercase tracking-widest mt-1">
-            9 DE JUNHO - 22 DE AGOSTO
-          </p>
+
         </div>
 
         {/* Institutional Logos / Apoio */}
