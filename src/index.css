@@ -41,6 +41,14 @@ h1, h2, h3, h4, h5, h6 {
     clip-path: none !important;
     border-radius: 8px !important;
   }
+
+  /* Global Modals responsiveness on smartphones */
+  .relative.max-w-md, .relative.max-w-xl, .relative.max-w-4xl {
+    width: 95% !important;
+    max-width: 95% !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
 }
 
 /* Animations */
