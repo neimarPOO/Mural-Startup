@@ -10,10 +10,21 @@ const Mural = ({ onSelectTeam, onSelectStage, onClickDetail, deliverables, selec
   const boardRef = useRef(null);
   const cardRefs = useRef({});
   const [coords, setCoords] = useState({});
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Check window size for mobile view
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Recalculate card center coordinates relative to the board container
   const updateCoords = () => {
-    if (!boardRef.current) return;
+    if (!boardRef.current || isMobile) return;
     const boardRect = boardRef.current.getBoundingClientRect();
     const newCoords = {};
 
@@ -34,7 +45,7 @@ const Mural = ({ onSelectTeam, onSelectStage, onClickDetail, deliverables, selec
     updateCoords();
     window.addEventListener('resize', updateCoords);
     return () => window.removeEventListener('resize', updateCoords);
-  }, [teams]); // dependency on teams to recalculate if teams render changes positions
+  }, [teams, isMobile]);
 
   // Helper to get teams at a specific stage position
   const getTeamsAtPosition = (posId) => {
@@ -68,6 +79,7 @@ const Mural = ({ onSelectTeam, onSelectStage, onClickDetail, deliverables, selec
 
   // Create the winding board connector path (SVG)
   const getSvgPath = () => {
+    if (isMobile) return '';
     if (
       !coords[1] || !coords[2] || !coords[3] || !coords[4] ||
       !coords[5] || !coords[6] || !coords[7] || !coords['curveLeft'] ||
@@ -89,6 +101,91 @@ const Mural = ({ onSelectTeam, onSelectStage, onClickDetail, deliverables, selec
       L ${coords['finish'].x} ${coords['finish'].y}
     `;
   };
+
+  if (isMobile) {
+    return (
+      <div className="relative w-full p-2 select-none">
+        <div ref={boardRef} className="w-full flex flex-col gap-6 p-4 bg-slate-900 border-[3px] border-slate-950 rounded-none shadow-[4px_4px_0px_0px_#020617]">
+          {stages.map((stage, idx) => {
+            const stageId = stage.id;
+            const showCurveBefore = stageId === 8;
+            
+            return (
+              <React.Fragment key={stageId}>
+                {showCurveBefore && (
+                  <div
+                    className="self-stretch bg-amber-950/40 border-[3px] border-slate-950 rounded-none p-4 w-full h-[100px] flex flex-col justify-center items-center text-center shadow-[4px_4px_0px_0px_#020617] relative"
+                  >
+                    <div className="absolute -top-3.5 -right-3.5 bg-amber-500 text-slate-900 border-2 border-slate-900 rounded-full p-1 shadow-sm">
+                      <RefreshCw className="w-4 h-4 text-white" />
+                    </div>
+                    <span className="font-black text-amber-400 text-xs tracking-wide uppercase">
+                      Melhora Tudo!
+                    </span>
+                    <p className="text-[10px] text-amber-200 font-bold mt-1">
+                      Ajuste o rumo do projeto!
+                    </p>
+                  </div>
+                )}
+                
+                <StageCard
+                  ref={el => cardRefs.current[stageId] = el}
+                  stage={stage}
+                  onClick={onSelectStage}
+                  onClickDetail={onClickDetail}
+                  deliverables={deliverables}
+                  stageDetails={stageDetails}
+                  selectedTeamId={selectedTeamId}
+                  teamCount={getTeamsAtPosition(stageId).length}
+                  direction="right"
+                  mobileTeams={getTeamsAtPosition(stageId)}
+                />
+              </React.Fragment>
+            );
+          })}
+
+          {/* Finish area stage mockup */}
+          <div
+            className="self-stretch border-[3px] border-slate-900 rounded-none bg-slate-955 p-5 flex flex-col justify-between items-center text-center shadow-[4px_4px_0px_0px_#0f172a] relative overflow-hidden"
+          >
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-[linear-gradient(90deg,#fff_50%,#000_50%)] bg-[length:16px_100%] border-b border-slate-900" />
+            <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-[linear-gradient(90deg,#fff_50%,#000_50%)] bg-[length:16px_100%] border-t border-slate-900" />
+            
+            <div className="flex flex-col items-center mt-2">
+              <Award className="w-10 h-10 text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)] animate-bounce-slow" />
+              <h4 className="text-white font-extrabold text-sm uppercase tracking-wider mt-2">
+                Pitch Final
+              </h4>
+              <span className="text-[9px] text-purple-300 font-bold bg-purple-950/80 px-2 py-0.5 border border-purple-800 rounded-full mt-1">
+                22 de Agosto
+              </span>
+            </div>
+            
+            <p className="text-[10px] text-slate-400 font-semibold mt-2">
+              Conquiste os investidores! 🏆
+            </p>
+            
+            {getTeamsAtPosition('finish').length > 0 && (
+              <div className="flex flex-wrap gap-1.5 justify-center mt-3 pt-3 border-t border-slate-800 w-full">
+                {getTeamsAtPosition('finish').map(t => (
+                  <div key={t.id} className="flex items-center gap-1.5 bg-slate-900 px-2 py-1 border border-slate-850" style={{ borderColor: t.color }}>
+                    <div className="w-4 h-4 rounded-full overflow-hidden bg-slate-950 flex items-center justify-center text-[8px] font-black" style={{ backgroundColor: t.color }}>
+                      {t.logo.startsWith('data:image') || t.logo.startsWith('http') ? (
+                        <img src={t.logo} alt={t.name} className="w-full h-full object-cover" />
+                      ) : (
+                        t.name.substring(0, 2).toUpperCase()
+                      )}
+                    </div>
+                    <span className="text-[9.5px] font-black text-white">{t.name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative w-full overflow-x-auto p-4 select-none">
@@ -224,9 +321,9 @@ const Mural = ({ onSelectTeam, onSelectStage, onClickDetail, deliverables, selec
         {/* Curve connector block "Melhora Tudo!" */}
         <div
           ref={el => cardRefs.current['curveLeft'] = el}
-          className="col-start-1 row-start-2 self-center justify-self-center bg-amber-950/40 border-[3px] border-slate-950 rounded-none p-4 w-full h-[120px] flex flex-col justify-center items-center text-center shadow-[4px_4px_0px_0px_#020617] relative group transition-all duration-150 hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#020617] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0px_0px_#020617] z-10"
+          className="col-start-1 row-start-2 self-center justify-self-center bg-amber-955/40 border-[3px] border-slate-950 rounded-none p-4 w-full h-[120px] flex flex-col justify-center items-center text-center shadow-[4px_4px_0px_0px_#020617] relative group transition-all duration-150 hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#020617] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0px_0px_#020617] z-10"
         >
-          <div className="absolute -top-3.5 -right-3.5 bg-amber-550 text-slate-900 border-2 border-slate-900 rounded-full p-1 shadow-sm animate-spin-slow">
+          <div className="absolute -top-3.5 -right-3.5 bg-amber-550 text-slate-900 border-2 border-slate-900 rounded-full p-1 shadow-sm">
             <RefreshCw className="w-5 h-5 text-white" />
           </div>
           <span className="font-black text-amber-400 text-sm tracking-wide uppercase">
@@ -283,7 +380,7 @@ const Mural = ({ onSelectTeam, onSelectStage, onClickDetail, deliverables, selec
         {/* Finish area stage mockup */}
         <div
           ref={el => cardRefs.current['finish'] = el}
-          className="col-start-4 row-start-3 self-stretch border-[3px] border-slate-900 rounded-none bg-slate-950 p-4 flex flex-col justify-between items-center text-center shadow-[4px_4px_0px_0px_#0f172a] relative overflow-hidden group transition-all duration-150 hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#0f172a] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0px_0px_#0f172a] z-10"
+          className="col-start-4 row-start-3 self-stretch border-[3px] border-slate-900 rounded-none bg-slate-955 p-4 flex flex-col justify-between items-center text-center shadow-[4px_4px_0px_0px_#0f172a] relative overflow-hidden group transition-all duration-150 hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#0f172a] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0px_0px_#0f172a] z-10"
         >
           {/* Checkered flag top/bottom bars */}
           <div className="absolute top-0 left-0 right-0 h-1.5 bg-[linear-gradient(90deg,#fff_50%,#000_50%)] bg-[length:16px_100%] border-b border-slate-900" />

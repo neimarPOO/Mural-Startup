@@ -37,10 +37,10 @@ const RankingSidebar = ({ teams, onSelectTeam }) => {
   const maxCompleted = sortedTeams.length > 0 ? sortedTeams[0].completedCount : -1;
 
   return (
-    <div className="bg-slate-900 rounded-none border-[3px] border-slate-900 p-5 shadow-[4px_4px_0px_0px_#020617] h-full flex flex-col justify-start text-white">
-      <div className="flex items-center gap-2 pb-4 border-b-2 border-slate-800">
-        <TrophyIcon className="w-6 h-6 text-amber-500 fill-amber-100/10" />
-        <h2 className="text-xl font-black text-white uppercase tracking-tight">
+    <div className="bg-slate-900 rounded-none border-[3px] border-slate-900 p-4 md:p-5 shadow-[4px_4px_0px_0px_#020617] h-full flex flex-col justify-start text-white">
+      <div className="flex items-center gap-2 pb-3 md:pb-4 border-b-2 border-slate-800">
+        <TrophyIcon className="w-5 h-5 md:w-6 h-6 text-amber-500 fill-amber-100/10" />
+        <h2 className="text-lg md:text-xl font-black text-white uppercase tracking-tight">
           Líderes do Mural
         </h2>
       </div>
@@ -50,7 +50,7 @@ const RankingSidebar = ({ teams, onSelectTeam }) => {
           Nenhuma equipe cadastrada no momento.
         </div>
       ) : (
-        <div className="mt-4 space-y-3 flex-1 overflow-y-auto pr-1">
+        <div className="mt-4 space-y-3 flex-1 overflow-y-auto pr-1 max-h-[350px] lg:max-h-none">
           {sortedTeams.map((team, index) => {
             const isLeader = team.completedCount > 0 && team.completedCount === maxCompleted;
             const rank = index + 1;
@@ -59,19 +59,19 @@ const RankingSidebar = ({ teams, onSelectTeam }) => {
               <div
                 key={team.id}
                 onClick={() => onSelectTeam(team)}
-                className={`p-3 rounded-none border-2 border-slate-900 transition-all duration-150 cursor-pointer flex items-center justify-between group neo-interactive ${
+                className={`p-2.5 md:p-3 rounded-none border-2 border-slate-900 transition-all duration-150 cursor-pointer flex items-center justify-between group neo-interactive ${
                   isLeader 
                     ? 'bg-amber-100 text-slate-950' 
                     : 'bg-slate-800 text-white'
                 }`}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5 md:gap-3 overflow-hidden">
                   {/* Rank number or Crown */}
-                  <div className="w-7 h-7 flex items-center justify-center font-black text-sm relative">
+                  <div className="w-6 h-6 md:w-7 md:h-7 flex items-center justify-center font-black text-sm relative flex-shrink-0">
                     {isLeader ? (
-                      <span className="text-lg crown-float select-none">👑</span>
+                      <span className="text-base md:text-lg crown-float select-none">👑</span>
                     ) : (
-                      <span className={`border-2 border-slate-900 rounded-none w-6 h-6 flex items-center justify-center text-xs font-black ${
+                      <span className={`border-2 border-slate-900 rounded-none w-5 h-5 md:w-6 md:h-6 flex items-center justify-center text-[10px] md:text-xs font-black ${
                         rank === 2 
                           ? 'bg-slate-600 text-white' 
                           : rank === 3 
@@ -85,26 +85,26 @@ const RankingSidebar = ({ teams, onSelectTeam }) => {
 
                   {/* Team Logo / Initials */}
                   <div 
-                    className="w-8 h-8 rounded-full border-2 border-slate-900 overflow-hidden flex items-center justify-center bg-slate-900 shadow-sm"
+                    className="w-7 h-7 md:w-8 md:h-8 rounded-full border-2 border-slate-900 overflow-hidden flex items-center justify-center bg-slate-900 shadow-sm flex-shrink-0"
                     style={{ borderColor: team.color }}
                   >
                     {team.logo.startsWith('data:image') || team.logo.startsWith('http') ? (
                       <img src={team.logo} alt={team.name} className="w-full h-full object-cover" />
                     ) : (
-                      <span className="text-xs font-bold text-slate-200">
+                      <span className="text-[10px] md:text-xs font-bold text-slate-200">
                         {team.name.substring(0, 2).toUpperCase()}
                       </span>
                     )}
                   </div>
 
                   {/* Team details */}
-                  <div>
-                    <h3 className={`font-extrabold text-sm uppercase leading-tight ${isLeader ? 'text-slate-950' : 'text-white'}`}>
+                  <div className="overflow-hidden">
+                    <h3 className={`font-extrabold text-xs md:text-sm uppercase leading-tight truncate ${isLeader ? 'text-slate-950' : 'text-white'}`}>
                       {team.name}
                     </h3>
                     
                     {/* Badges list */}
-                    <div className="flex items-center gap-1 mt-1">
+                    <div className="flex items-center gap-1 mt-0.5">
                       {team.badges.map((badge, idx) => (
                         <span
                           key={idx}
@@ -115,7 +115,7 @@ const RankingSidebar = ({ teams, onSelectTeam }) => {
                         </span>
                       ))}
                       {team.badges.length === 0 && (
-                        <span className={`text-[10px] font-extrabold ${isLeader ? 'text-slate-700' : 'text-slate-400'}`}>
+                        <span className={`text-[9px] md:text-[10px] font-extrabold ${isLeader ? 'text-slate-700' : 'text-slate-400'}`}>
                           Fase {team.currentStage}
                         </span>
                       )}
@@ -124,12 +124,12 @@ const RankingSidebar = ({ teams, onSelectTeam }) => {
                 </div>
 
                 {/* Progress Circle / Percentage */}
-                <div className="text-right flex flex-col items-end">
-                  <span className={`font-black text-sm ${isLeader ? 'text-slate-950' : 'text-white'}`}>
+                <div className="text-right flex flex-col items-end flex-shrink-0 pl-1">
+                  <span className={`font-black text-xs md:text-sm ${isLeader ? 'text-slate-950' : 'text-white'}`}>
                     {team.progressPercent}%
                   </span>
-                  <span className={`text-[9px] font-bold uppercase tracking-wider ${isLeader ? 'text-slate-700' : 'text-slate-400'}`}>
-                    {team.completedCount}/10 Etapas
+                  <span className={`text-[8px] md:text-[9px] font-bold uppercase tracking-wider ${isLeader ? 'text-slate-700' : 'text-slate-400'}`}>
+                    {team.completedCount}/10
                   </span>
                 </div>
               </div>
@@ -140,10 +140,10 @@ const RankingSidebar = ({ teams, onSelectTeam }) => {
 
       {/* Gamification tip/legend */}
       <div className="mt-4 pt-4 border-t-2 border-slate-800">
-        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+        <h4 className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
           Conquistas Automáticas
         </h4>
-        <div className="grid grid-cols-2 gap-2 text-[10px] font-extrabold text-slate-300">
+        <div className="grid grid-cols-2 gap-2 text-[9px] md:text-[10px] font-extrabold text-slate-300">
           <div className="flex items-center gap-1">
             <span>🚀</span> Decolou (Etapa 1)
           </div>

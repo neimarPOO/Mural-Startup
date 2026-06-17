@@ -16,7 +16,8 @@ const iconMap = {
 
 const StageCard = forwardRef(({ 
   stage, isActive, isCompleted, teamCount, onClick, onClickDetail, 
-  deliverables = [], stageDetails = null, selectedTeamId = null, direction = 'right' 
+  deliverables = [], stageDetails = null, selectedTeamId = null, direction = 'right',
+  mobileTeams = []
 }, ref) => {
   const IconComponent = iconMap[stage.iconType] || Icons.HelpCircle;
   const clipClass = direction === 'right' ? 'trail-arrow-right' : 'trail-arrow-left';
@@ -81,6 +82,29 @@ const StageCard = forwardRef(({
           <IconComponent className="w-4 h-4" style={{ color: stage.color }} />
         </div>
       </div>
+
+      {/* Render Mobile Team Avatars inside card if on mobile */}
+      {mobileTeams.length > 0 && (
+        <div className="flex flex-wrap gap-2 justify-center py-1.5 px-3 bg-slate-950/40 border border-slate-800 rounded-lg">
+          <span className="text-[9px] font-bold text-slate-400 uppercase w-full text-center">Equipes nesta etapa:</span>
+          {mobileTeams.map(t => (
+            <div
+              key={t.id}
+              className="flex items-center gap-1.5 bg-slate-900 border-2 border-slate-950 px-2 py-1 rounded-md"
+              style={{ borderColor: t.color }}
+            >
+              <div className="w-4 h-4 rounded-full overflow-hidden flex items-center justify-center bg-slate-950 text-[8px] font-black" style={{ backgroundColor: t.color }}>
+                {t.logo.startsWith('data:image') || t.logo.startsWith('http') ? (
+                  <img src={t.logo} alt={t.name} className="w-full h-full object-cover" />
+                ) : (
+                  t.name.substring(0, 2).toUpperCase()
+                )}
+              </div>
+              <span className="text-[9px] font-black text-white">{t.name}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Sub-items list / Details tags below the card */}
       <div className="flex flex-wrap gap-1 px-4 justify-center">

@@ -27,6 +27,22 @@ h1, h2, h3, h4, h5, h6 {
   position: relative;
 }
 
+@media (max-width: 767px) {
+  .serpentine-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    padding: 1rem !important;
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+  
+  .trail-arrow-right, .trail-arrow-left, .trail-arrow-right-start, .trail-arrow-left-start {
+    clip-path: none !important;
+    border-radius: 8px !important;
+  }
+}
+
 /* Animations */
 @keyframes pulseGlow {
   0% {
@@ -210,5 +226,3 @@ h1, h2, h3, h4, h5, h6 {
 .avatar-pulsing {
   animation: avatarBlinkGlow 2s infinite ease-in-out;
 }
-
-
