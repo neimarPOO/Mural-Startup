@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { stages } from '../../data/stages';
-import { X, Save, CheckCircle, AlertTriangle, User, ShieldAlert } from 'lucide-react';
+import { X, Save, CheckCircle, AlertTriangle, User, ShieldAlert, Upload, Trash2, Loader2 } from 'lucide-react';
+import { supabase } from '../../lib/supabaseClient';
 
 const ItemDetailModal = ({ team, stageId, itemName, onClose }) => {
   const { user, teams, deliverables, saveDeliverable, approveDeliverable, saveFeedback } = useAuth();
   
   const stage = stages.find(s => s.id === parseInt(stageId));
+  const isMediaStage = [2, 5, 6, 7].includes(parseInt(stageId));
   
   // Allow visitors/admins to switch teams inside the modal if no team was pre-selected
   const [selectedTeamId, setSelectedTeamId] = useState(team ? team.id : (teams[0] ? teams[0].id : ''));
@@ -16,7 +18,11 @@ const ItemDetailModal = ({ team, stageId, itemName, onClose }) => {
     d => d.teamId === selectedTeamId && d.stageId === parseInt(stageId) && d.itemName === itemName
   );
   
-  const [content, setContent] = useState('');
+  const [contentText, setContentText] = useState('');
+  const [mediaUrl, setMediaUrl] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  
   const [adminFeedback, setAdminFeedback] = useState('');
   const [isSaved, setIsSaved] = useState(false);
   const [isFeedbackSaved, setIsFeedbackSaved] = useState(false);
@@ -24,14 +30,28 @@ const ItemDetailModal = ({ team, stageId, itemName, onClose }) => {
   // Sync content and feedback when active team or database updates
   useEffect(() => {
     if (deliverable) {
-      setContent(deliverable.content);
+      let parsed = { text: '', mediaUrl: '' };
+      try {
+        if (deliverable.content.startsWith('{')) {
+          parsed = JSON.parse(deliverable.content);
+        } else {
+          parsed = { text: deliverable.content, mediaUrl: '' };
+        }
+      } catch (e) {
+        parsed = { text: deliverable.content || '', mediaUrl: '' };
+      }
+      
+      setContentText(parsed.text || '');
+      setMediaUrl(parsed.mediaUrl || '');
       setAdminFeedback(deliverable.feedback || '');
     } else {
-      setContent('');
+      setContentText('');
+      setMediaUrl('');
       setAdminFeedback('');
     }
     setIsSaved(false);
     setIsFeedbackSaved(false);
+    setUploadError('');
   }, [selectedTeamId, deliverables, stageId, itemName]);
 
   const hasEditPermission = activeTeam && user && (
@@ -39,11 +59,73 @@ const ItemDetailModal = ({ team, stageId, itemName, onClose }) => {
   );
   const isAdmin = user && user.role === 'admin';
 
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setUploadError('');
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${activeTeam.id}_${stageId}_${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { data, error } = await supabase.storage
+        .from('mural_media')
+        .upload(filePath, file);
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('mural_media')
+        .getPublicUrl(filePath);
+
+      setMediaUrl(publicUrl);
+    } catch (err) {
+      console.error('Erro ao fazer upload:', err);
+      setUploadError(err.message || 'Falha no upload do arquivo.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleRemoveMedia = async () => {
+    if (!hasEditPermission) return;
+    
+    const urlToRemove = mediaUrl;
+    if (!urlToRemove) return;
+
+    setMediaUrl('');
+    setUploadError('');
+
+    const isUploaded = urlToRemove.includes('/storage/v1/object/public/mural_media/');
+    if (isUploaded) {
+      try {
+        const parts = urlToRemove.split('/mural_media/');
+        const filePath = parts[parts.length - 1];
+        const { error } = await supabase.storage
+          .from('mural_media')
+          .remove([filePath]);
+        if (error) throw error;
+      } catch (err) {
+        console.error('Erro ao excluir do Storage:', err);
+        setUploadError('Erro ao deletar arquivo físico do Storage.');
+      }
+    }
+
+    const finalContent = contentText.trim() ? JSON.stringify({ text: contentText, mediaUrl: '' }) : '';
+    saveDeliverable(activeTeam.id, stageId, itemName, finalContent);
+  };
+
   const handleSave = (e) => {
     e.preventDefault();
     if (!hasEditPermission) return;
     
-    saveDeliverable(activeTeam.id, stageId, itemName, content);
+    const finalContent = isMediaStage
+      ? (contentText.trim() || mediaUrl.trim() ? JSON.stringify({ text: contentText, mediaUrl }) : '')
+      : contentText;
+
+    saveDeliverable(activeTeam.id, stageId, itemName, finalContent);
     setIsSaved(true);
     setTimeout(() => setIsSaved(false), 3000);
   };
@@ -60,6 +142,81 @@ const ItemDetailModal = ({ team, stageId, itemName, onClose }) => {
     setIsFeedbackSaved(true);
     setTimeout(() => setIsFeedbackSaved(false), 3000);
   };
+
+  const renderMediaPreview = (url) => {
+    if (!url) return null;
+    
+    // Check if YouTube link
+    const ytRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
+    const ytMatch = url.match(ytRegex);
+    if (ytMatch && ytMatch[1]) {
+      return (
+        <iframe
+          src={`https://www.youtube.com/embed/${ytMatch[1]}`}
+          title="YouTube video player"
+          frameBorder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          className="w-full aspect-video"
+        />
+      );
+    }
+    
+    // Check if Vimeo link
+    const vimeoRegex = /vimeo\.com\/(?:video\/)?([0-9]+)/i;
+    const vimeoMatch = url.match(vimeoRegex);
+    if (vimeoMatch && vimeoMatch[1]) {
+      return (
+        <iframe
+          src={`https://player.vimeo.com/video/${vimeoMatch[1]}`}
+          title="Vimeo video player"
+          frameBorder="0"
+          allow="autoplay; fullscreen; picture-in-picture"
+          allowFullScreen
+          className="w-full aspect-video"
+        />
+      );
+    }
+
+    // Check if direct video file link
+    const isVideo = /\.(mp4|webm|ogg|mov)(?:\?.*)?$/i.test(url) || url.includes('/storage/v1/object/public/mural_media/') && (url.includes('.mp4') || url.includes('.webm'));
+    if (isVideo) {
+      return (
+        <video controls className="w-full max-h-[250px] object-contain">
+          <source src={url} />
+          Seu navegador não suporta a reprodução de vídeo.
+        </video>
+      );
+    }
+
+    // Check if image link
+    const isImage = /\.(jpeg|jpg|gif|png|webp|svg)(?:\?.*)?$/i.test(url) || url.includes('/storage/v1/object/public/mural_media/') && !(url.includes('.mp4') || url.includes('.webm'));
+    if (isImage) {
+      return (
+        <img
+          src={url}
+          alt="Entregável da equipe"
+          className="w-full max-h-[250px] object-contain"
+        />
+      );
+    }
+
+    // Fallback: link
+    return (
+      <div className="p-4 text-center">
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs font-black text-indigo-400 hover:underline break-all"
+        >
+          Abrir link em nova aba ↗
+        </a>
+      </div>
+    );
+  };
+
+  const hasContent = contentText.trim() !== '' || mediaUrl.trim() !== '';
 
   return (
     <div className="fixed inset-0 z-[70] overflow-y-auto flex items-center justify-center p-4 select-none animate-in fade-in duration-200">
@@ -121,7 +278,7 @@ const ItemDetailModal = ({ team, stageId, itemName, onClose }) => {
               <div className={`p-3 border-2 border-slate-950 flex items-center justify-between shadow-xs ${
                 deliverable?.approved 
                   ? 'bg-emerald-950/20 text-emerald-400 border-emerald-900/50' 
-                  : content.trim() 
+                  : hasContent
                   ? 'bg-amber-950/20 text-amber-400 border-amber-900/50' 
                   : 'bg-slate-950/40 text-slate-400 border-slate-800'
               }`}>
@@ -134,7 +291,7 @@ const ItemDetailModal = ({ team, stageId, itemName, onClose }) => {
                   <span className="text-[10px] font-black uppercase tracking-wider">
                     {deliverable?.approved 
                       ? 'Entrega Aprovada ✅' 
-                      : content.trim() 
+                      : hasContent
                       ? 'Aguardando Avaliação do Admin ⏳' 
                       : 'Pendente / Não Iniciado ⬜'}
                   </span>
@@ -147,19 +304,88 @@ const ItemDetailModal = ({ team, stageId, itemName, onClose }) => {
                   Descreva o conteúdo ou adicione o link de entrega:
                 </label>
                 <textarea
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
+                  value={contentText}
+                  onChange={(e) => setContentText(e.target.value)}
                   disabled={!hasEditPermission}
                   placeholder={hasEditPermission ? "Escreva aqui a resposta da equipe ou cole o link do documento..." : "Nenhuma entrega registrada ainda."}
-                  className="w-full h-32 bg-slate-800 border-2 border-slate-950 rounded-none px-3 py-2 text-xs font-bold text-white focus:outline-none focus:bg-slate-950 transition-all resize-none disabled:opacity-60"
+                  className="w-full h-24 bg-slate-800 border-2 border-slate-950 rounded-none px-3 py-2 text-xs font-bold text-white focus:outline-none focus:bg-slate-950 transition-all resize-none disabled:opacity-60"
                 />
               </div>
+
+              {/* Media Upload / URL section (Only for stages 2, 5, 6, 7) */}
+              {isMediaStage && (
+                <div className="space-y-2 border-2 border-slate-950 p-3 bg-slate-950/20">
+                  <label className="block text-[10px] font-black text-slate-405 uppercase tracking-wider">
+                    Anexar Imagem ou Vídeo:
+                  </label>
+                  
+                  <div className="flex flex-col gap-2">
+                    {/* Link URL input */}
+                    <input
+                      type="text"
+                      value={mediaUrl}
+                      onChange={(e) => setMediaUrl(e.target.value)}
+                      disabled={!hasEditPermission || isUploading}
+                      placeholder="Cole uma URL externa (YouTube, Vimeo, imagem ou vídeo)..."
+                      className="w-full bg-slate-800 border-2 border-slate-950 px-2.5 py-1.5 text-xs font-bold text-white focus:outline-none focus:bg-slate-950 transition-all disabled:opacity-60"
+                    />
+                    
+                    {/* File Upload Button wrapper */}
+                    {hasEditPermission && (
+                      <div className="relative">
+                        <input
+                          type="file"
+                          onChange={handleFileUpload}
+                          disabled={isUploading}
+                          accept="image/*,video/*"
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed z-10"
+                        />
+                        <button
+                          type="button"
+                          className="w-full bg-slate-905 text-white border-2 border-slate-950 px-3 py-2 text-[10px] font-black tracking-widest flex items-center justify-center gap-1.5 shadow-[2px_2px_0px_0px_#000]"
+                        >
+                          {isUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                          <span>{isUploading ? 'ENVIANDO...' : 'OU FAÇA UPLOADING DE ARQUIVO'}</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {uploadError && (
+                    <p className="text-[10px] text-red-400 font-bold mt-1">{uploadError}</p>
+                  )}
+
+                  {/* Media Preview inside the panel */}
+                  {mediaUrl && (
+                    <div className="mt-3 border border-slate-950 p-1 bg-slate-950/40 flex flex-col gap-1.5">
+                      <div className="flex items-center justify-between px-1">
+                        <span className="text-[8.5px] font-black text-slate-450 uppercase tracking-widest">
+                          Pré-visualização:
+                        </span>
+                        {hasEditPermission && (
+                          <button
+                            type="button"
+                            onClick={handleRemoveMedia}
+                            className="text-red-400 hover:text-red-350 text-[9px] font-black flex items-center gap-0.5 cursor-pointer"
+                          >
+                            <Trash2 className="w-2.5 h-2.5" />
+                            Remover
+                          </button>
+                        )}
+                      </div>
+                      <div className="overflow-hidden border border-slate-950 bg-slate-950 flex items-center justify-center min-h-[120px] max-h-[250px]">
+                        {renderMediaPreview(mediaUrl)}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Submit button for teams */}
               {hasEditPermission && (
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-[8px] text-slate-400 font-bold uppercase leading-tight">
-                    💡 Alterar o texto reinicia a aprovação do coordenador.
+                    💡 Salvar reinicia a aprovação do coordenador.
                   </span>
                   <button
                     type="submit"
@@ -224,9 +450,9 @@ const ItemDetailModal = ({ team, stageId, itemName, onClose }) => {
                 <button
                   type="button"
                   onClick={handleApproveToggle}
-                  disabled={!content.trim()}
+                  disabled={!hasContent}
                   className={`flex-1 py-2.5 text-[10px] font-black tracking-widest border-2 uppercase transition-all flex items-center justify-center gap-2 rounded-none shadow-[2px_2px_0px_0px_#020617] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] ${
-                    !content.trim() 
+                    !hasContent
                       ? 'opacity-20 cursor-default shadow-none pointer-events-none'
                       : deliverable?.approved
                       ? 'bg-red-900 border-red-500 text-white hover:bg-red-800'

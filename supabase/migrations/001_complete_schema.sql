@@ -137,3 +137,22 @@ DROP POLICY IF EXISTS "lean_canvas_update_todos" ON lean_canvas;
 CREATE POLICY "lean_canvas_select_todos" ON lean_canvas FOR SELECT USING (true);
 CREATE POLICY "lean_canvas_insert_todos" ON lean_canvas FOR INSERT WITH CHECK (true);
 CREATE POLICY "lean_canvas_update_todos" ON lean_canvas FOR UPDATE USING (true);
+
+-- 7. Configuração de Armazenamento (Storage Buckets & Policies)
+-- Criar bucket mural_media caso não exista
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('mural_media', 'mural_media', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Habilitar RLS no Storage e remover políticas antigas para evitar duplicidade
+DROP POLICY IF EXISTS "mural_media_select_policy" ON storage.objects;
+DROP POLICY IF EXISTS "mural_media_insert_policy" ON storage.objects;
+DROP POLICY IF EXISTS "mural_media_update_policy" ON storage.objects;
+DROP POLICY IF EXISTS "mural_media_delete_policy" ON storage.objects;
+
+-- Criar políticas de acesso públicas e irrestritas para o bucket mural_media
+CREATE POLICY "mural_media_select_policy" ON storage.objects FOR SELECT USING (bucket_id = 'mural_media');
+CREATE POLICY "mural_media_insert_policy" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'mural_media');
+CREATE POLICY "mural_media_update_policy" ON storage.objects FOR UPDATE USING (bucket_id = 'mural_media');
+CREATE POLICY "mural_media_delete_policy" ON storage.objects FOR DELETE USING (bucket_id = 'mural_media');
+
