@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700;900&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700;900&family=Inter:wght@400;500;600;700&family=Chelsea+Market&display=swap');
 
 @theme {
   --font-sans: 'Inter', sans-serif;
@@ -147,6 +147,12 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* Redesign Trail Styles */
+.chelsea-market-regular {
+  font-family: "Chelsea Market", system-ui;
+  font-weight: 400;
+  font-style: normal;
+}
+
 .title-cartoon-3d {
   font-family: var(--font-display);
   font-weight: 900;

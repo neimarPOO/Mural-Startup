@@ -11,8 +11,8 @@ const Header = ({ onOpenAdmin, onOpenLogin, onOpenRegister }) => {
         {/* Colorful Title matching the style in reference image */}
         <div className="text-center md:text-left flex flex-col items-center md:items-start gap-1">
           <h1 className="text-xl md:text-3.5xl font-black tracking-wide leading-none select-none">
-            <span className="text-[#38bdf8] title-cartoon-3d">PROJETO FINAL</span>{' '}
-            <span className="text-[#4ade80] title-cartoon-3d">2026</span>
+            <span className="text-[#38bdf8] chelsea-market-regular">PROJETO FINAL</span>{' '}
+            <span className="text-[#4ade80] chelsea-market-regular">2026</span>
           </h1>
 
         </div>
