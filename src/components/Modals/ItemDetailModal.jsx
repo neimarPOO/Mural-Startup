@@ -66,8 +66,12 @@ const ItemDetailModal = ({ team, stageId, itemName, onClose }) => {
     setIsUploading(true);
     setUploadError('');
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${activeTeam.id}_${stageId}_${Date.now()}.${fileExt}`;
+      const fileExt = file.name.split('.').pop().toLowerCase().replace(/[^a-z0-9]/g, '');
+      const sanitizedTeamId = activeTeam.id
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9-_]/g, "");
+      const fileName = `${sanitizedTeamId}_${stageId}_${Date.now()}.${fileExt}`;
       const filePath = `${fileName}`;
 
       const { data, error } = await supabase.storage
