@@ -32,7 +32,7 @@ const defaultTools = {
   1: { name: "Lean Canvas Interativo", url: "https://leancanvas-interativo.netlify.app/", desc: "Crie o quadro do seu negócio e analise a viabilidade com IA." },
   2: { name: "Canva (Design)", url: "https://www.canva.com/", desc: "Crie a logo, identidade visual e embalagem da sua startup." },
   3: { name: "Trello (Gestão)", url: "https://trello.com/", desc: "Monte o quadro Kanban para gerenciar as tarefas do time." },
-  4: { name: "Google Sheets (Planilhas)", url: "https://sheets.new/", desc: "Estruture planilhas de custos fixos, variáveis e projeção financeira." },
+  4: { name: "Ficha Técnica Gastronômica", url: "https://ficha-tecnica-gastronomica.netlify.app/", desc: "Estruture planilhas de custos fixos, variáveis e projeção financeira." },
   5: { name: "Figma (Protótipos)", url: "https://figma.com/", desc: "Desenhe o wireframe e protótipo interativo do seu MVP." },
   6: { name: "Google Forms (Pesquisa)", url: "https://forms.new/", desc: "Crie questionários para testes de usabilidade com usuários." },
   7: { name: "Tally / Google Forms", url: "https://tally.so/", desc: "Colete feedbacks reais sobre o produto e valide hipóteses." },
