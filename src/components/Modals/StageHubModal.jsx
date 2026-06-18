@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { stages } from '../../data/stages';
 import { 
@@ -176,6 +176,9 @@ const StageHubModal = ({ team, stageId, onClose }) => {
     let targetUrl = tool.url;
     if (parseInt(stageId) === 1 && team) {
       targetUrl = `https://leancanvas-interativo.netlify.app/?teamId=${team.id}`;
+    }
+    if (parseInt(stageId) === 4 && team) {
+      targetUrl = `https://ficha-tecnica-gastronomica.netlify.app/?teamId=${team.id}`;
     }
     window.open(targetUrl, '_blank');
   };
