@@ -81,6 +81,10 @@ const ItemDetailModal = ({ team, stageId, itemName, onClose }) => {
         .getPublicUrl(filePath);
 
       setMediaUrl(publicUrl);
+      
+      // Auto-save: immediately persist upload URL to database to avoid loss if modal is closed
+      const finalContent = JSON.stringify({ text: contentText, mediaUrl: publicUrl });
+      saveDeliverable(activeTeam.id, stageId, itemName, finalContent);
     } catch (err) {
       console.error('Erro ao fazer upload:', err);
       setUploadError(err.message || 'Falha no upload do arquivo.');
