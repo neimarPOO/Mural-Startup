@@ -13,9 +13,7 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('mural_media', 'mural_media', true)
 ON CONFLICT (id) DO UPDATE SET public = true;
 
--- 2. Habilitar RLS no storage.objects (se não estiver) e recriar políticas públicas
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
-
+-- 2. Recriar políticas públicas de acesso no storage.objects
 DROP POLICY IF EXISTS "mural_media_select_policy" ON storage.objects;
 DROP POLICY IF EXISTS "mural_media_insert_policy" ON storage.objects;
 DROP POLICY IF EXISTS "mural_media_update_policy" ON storage.objects;
