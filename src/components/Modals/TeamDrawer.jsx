@@ -73,7 +73,7 @@ const presetColors = [
 ];
 
 const TeamDrawer = ({ team, onClose, onManageLinks }) => {
-  const { user, updateTeamStage, updateTeam } = useAuth();
+  const { user, updateTeamStage, updateTeam, deliverables, stageDetails } = useAuth();
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [name, setName] = useState(team ? team.name : '');
   const [password, setPassword] = useState(team ? team.password : '');
@@ -163,7 +163,24 @@ const TeamDrawer = ({ team, onClose, onManageLinks }) => {
     // Toggle cycle: pending -> in_progress -> completed -> pending
     let nextStatus = 'pending';
     if (currentStatus === 'pending') nextStatus = 'in_progress';
-    else if (currentStatus === 'in_progress') nextStatus = 'completed';
+    else if (currentStatus === 'in_progress') {
+      const stage = stages.find(s => s.id === parseInt(stageId));
+      const activeDetails = (stageDetails && stageDetails[stageId]) || stage?.details || [];
+      const stageDeliverables = deliverables.filter(
+        d => d.teamId === team.id && d.stageId === parseInt(stageId)
+      );
+      
+      const allApproved = activeDetails.every(detail => {
+        const found = stageDeliverables.find(d => d.itemName.toUpperCase() === detail.toUpperCase());
+        return found && found.approved;
+      });
+
+      if (!allApproved) {
+        alert('Você só pode marcar como Concluído se todos os sub-itens dessa etapa forem preenchidos e Aprovados pelo Admin!');
+        return;
+      }
+      nextStatus = 'completed';
+    }
     
     updateTeamStage(team.id, stageId, nextStatus);
   };
