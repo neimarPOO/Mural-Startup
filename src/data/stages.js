@@ -27,7 +27,7 @@ export const stages = [
     id: 3,
     title: "Modelo de Negócio",
     subtitle: "Defina como ganha dinheiro",
-    details: ["Monetização", "Fluxo de Caixa", "Canais"],
+    details: ["Monetização", "Canais"],
     color: "#2196F3", // azul
     textColor: "text-white",
     bgClass: "bg-blue-500",
