@@ -60,31 +60,36 @@ export const AuthProvider = ({ children }) => {
         const { data, error } = await supabase
           .from('custom_stage_details')
           .select('*');
-        if (!error && data && data.length > 0) {
-          const dbDetails = {};
-          data.forEach(item => {
-            if (!dbDetails[item.stage_id]) {
-              dbDetails[item.stage_id] = [];
-            }
-            dbDetails[item.stage_id].push(item.item_name);
-          });
+          
+        const localSaved = JSON.parse(localStorage.getItem('mural_stage_details') || '{}');
+        const finalStageDetails = {};
+        
+        initialStages.forEach(s => {
+          finalStageDetails[s.id] = [...s.details];
+          
+          // Adicionar o que está no localStorage
+          if (localSaved[s.id]) {
+            localSaved[s.id].forEach(item => {
+              if (!finalStageDetails[s.id].map(name => name.toUpperCase()).includes(item.toUpperCase())) {
+                finalStageDetails[s.id].push(item);
+              }
+            });
+          }
+          
+          // Adicionar o que veio do Supabase DB
+          if (!error && data && data.length > 0) {
+            data.filter(d => d.stage_id === s.id).forEach(d => {
+              if (!finalStageDetails[s.id].map(name => name.toUpperCase()).includes(d.item_name.toUpperCase())) {
+                finalStageDetails[s.id].push(d.item_name);
+              }
+            });
+          }
+        });
 
-          const finalStageDetails = {};
-          initialStages.forEach(s => {
-            finalStageDetails[s.id] = [...s.details];
-            if (dbDetails[s.id]) {
-              dbDetails[s.id].forEach(item => {
-                if (!finalStageDetails[s.id].map(name => name.toUpperCase()).includes(item.toUpperCase())) {
-                  finalStageDetails[s.id].push(item);
-                }
-              });
-            }
-          });
-          setStageDetails(finalStageDetails);
-          localStorage.setItem('mural_stage_details', JSON.stringify(finalStageDetails));
-        }
+        setStageDetails(finalStageDetails);
+        localStorage.setItem('mural_stage_details', JSON.stringify(finalStageDetails));
       } catch (err) {
-        console.warn("Table custom_stage_details might not exist yet:", err);
+        console.warn("Erro ao buscar custom_stage_details no Supabase:", err);
       }
 
       let dbStages = [];
@@ -932,12 +937,15 @@ export const AuthProvider = ({ children }) => {
 
     if (isSupabaseConfigured) {
       try {
-        await supabase
+        const { error } = await supabase
           .from('custom_stage_details')
-          .insert([{
+          .upsert([{
             stage_id: sId,
             item_name: trimmed
-          }]);
+          }], { onConflict: 'stage_id,item_name' });
+        if (error) {
+          console.error('Erro do Supabase ao inserir legenda:', error);
+        }
       } catch (err) {
         console.error('Erro ao salvar nova legenda no Supabase:', err);
       }
