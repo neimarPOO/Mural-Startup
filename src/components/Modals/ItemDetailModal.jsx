@@ -54,10 +54,8 @@ const ItemDetailModal = ({ team, stageId, itemName, onClose }) => {
     setUploadError('');
   }, [selectedTeamId, deliverables, stageId, itemName]);
 
-  const hasEditPermission = activeTeam && user && (
-    user.role === 'admin' || (user.role === 'team' && user.id === activeTeam.id)
-  );
   const isAdmin = user && user.role === 'admin';
+  const hasEditPermission = isAdmin || (activeTeam && user && user.role === 'team' && user.id === activeTeam.id);
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];

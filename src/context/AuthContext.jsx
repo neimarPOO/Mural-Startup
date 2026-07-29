@@ -61,26 +61,22 @@ export const AuthProvider = ({ children }) => {
           .from('custom_stage_details')
           .select('*');
           
-        const localSaved = JSON.parse(localStorage.getItem('mural_stage_details') || '{}');
+        const deletedSaved = JSON.parse(localStorage.getItem('mural_deleted_stage_details') || '{}');
         const finalStageDetails = {};
         
         initialStages.forEach(s => {
-          finalStageDetails[s.id] = [...s.details];
-          
-          // 1. Adicionar o que veio do Supabase DB
+          const sId = s.id;
+          const stageDeleted = (deletedSaved[sId] || []).map(n => n.toUpperCase());
+
+          // Seed with default initial details, excluding any deleted by Admin
+          finalStageDetails[sId] = s.details.filter(item => !stageDeleted.includes(item.toUpperCase()));
+
+          // Add custom details fetched from Supabase DB
           if (!error && data && data.length > 0) {
-            data.filter(d => d.stage_id === s.id).forEach(d => {
-              if (!finalStageDetails[s.id].map(name => name.toUpperCase()).includes(d.item_name.toUpperCase())) {
-                finalStageDetails[s.id].push(d.item_name);
-              }
-            });
-          }
-          
-          // 2. Preservar o que está no localStorage (garante que tarefas locais nunca são apagadas se o Supabase não salvar)
-          if (localSaved[s.id]) {
-            localSaved[s.id].forEach(item => {
-              if (!finalStageDetails[s.id].map(name => name.toUpperCase()).includes(item.toUpperCase())) {
-                finalStageDetails[s.id].push(item);
+            data.filter(d => d.stage_id === sId).forEach(d => {
+              const itemNameUpper = d.item_name.toUpperCase();
+              if (!stageDeleted.includes(itemNameUpper) && !finalStageDetails[sId].map(name => name.toUpperCase()).includes(itemNameUpper)) {
+                finalStageDetails[sId].push(d.item_name);
               }
             });
           }
@@ -936,6 +932,13 @@ export const AuthProvider = ({ children }) => {
     const trimmed = detailName.trim();
     if (!trimmed) return;
 
+    // Unmark from deleted if it was previously deleted
+    const deletedSaved = JSON.parse(localStorage.getItem('mural_deleted_stage_details') || '{}');
+    if (deletedSaved[sId]) {
+      deletedSaved[sId] = deletedSaved[sId].filter(n => n.toUpperCase() !== trimmed.toUpperCase());
+      localStorage.setItem('mural_deleted_stage_details', JSON.stringify(deletedSaved));
+    }
+
     setStageDetails(prev => {
       const current = prev[sId] || [];
       if (current.map(name => name.toUpperCase()).includes(trimmed.toUpperCase())) {
@@ -966,7 +969,7 @@ export const AuthProvider = ({ children }) => {
           error = insertErr;
         }
 
-        if (error) {
+        if (error && error.code !== '23505') {
           console.error('Erro do Supabase ao inserir tarefa:', error);
           alert(`Erro do Supabase ao criar tarefa: ${error.message || JSON.stringify(error)}`);
         } else {
@@ -983,11 +986,21 @@ export const AuthProvider = ({ children }) => {
     const sId = parseInt(stageId);
     const oldTrimmed = oldDetailName.trim();
     const newTrimmed = newDetailName.trim();
-    if (!oldTrimmed || !newTrimmed) return;
+    if (!oldTrimmed || !newTrimmed || oldTrimmed === newTrimmed) return;
+
+    // Mark old name as deleted so default initialStages doesn't re-inject old name
+    const deletedSaved = JSON.parse(localStorage.getItem('mural_deleted_stage_details') || '{}');
+    const currentDeleted = deletedSaved[sId] || [];
+    if (!currentDeleted.map(n => n.toUpperCase()).includes(oldTrimmed.toUpperCase())) {
+      deletedSaved[sId] = [...currentDeleted, oldTrimmed];
+    }
+    // Make sure new name is not in deleted list
+    deletedSaved[sId] = deletedSaved[sId].filter(n => n.toUpperCase() !== newTrimmed.toUpperCase());
+    localStorage.setItem('mural_deleted_stage_details', JSON.stringify(deletedSaved));
 
     setStageDetails(prev => {
       const current = prev[sId] || [];
-      const updated = current.map(item => item === oldTrimmed ? newTrimmed : item);
+      const updated = current.map(item => item.toUpperCase() === oldTrimmed.toUpperCase() ? newTrimmed : item);
       const next = { ...prev, [sId]: updated };
       localStorage.setItem('mural_stage_details', JSON.stringify(next));
       return next;
@@ -996,7 +1009,7 @@ export const AuthProvider = ({ children }) => {
     // Rename associated deliverables
     setDeliverables(prev => {
       const next = prev.map(d => {
-        if (d.stageId === sId && d.itemName === oldTrimmed) {
+        if (d.stageId === sId && d.itemName.toUpperCase() === oldTrimmed.toUpperCase()) {
           return { ...d, itemName: newTrimmed };
         }
         return d;
@@ -1007,23 +1020,27 @@ export const AuthProvider = ({ children }) => {
 
     if (isSupabaseConfigured) {
       try {
-        // Update custom detail item_name
-        const { error: err1 } = await supabase
+        // Try updating custom detail in DB
+        const { data: updatedDetails, error: err1 } = await supabase
           .from('custom_stage_details')
           .update({ item_name: newTrimmed })
           .eq('stage_id', sId)
-          .eq('item_name', oldTrimmed);
+          .eq('item_name', oldTrimmed)
+          .select();
 
-        if (err1) console.error('Erro do Supabase ao atualizar legenda:', err1);
+        if (err1 || !updatedDetails || updatedDetails.length === 0) {
+          // If it was a default stage detail or update returned 0 rows, insert newTrimmed into custom_stage_details
+          await supabase
+            .from('custom_stage_details')
+            .upsert([{ stage_id: sId, item_name: newTrimmed }], { onConflict: 'stage_id,item_name' });
+        }
 
-        // Update deliverables item_name
-        const { error: err2 } = await supabase
+        // Update deliverables in DB
+        await supabase
           .from('team_stage_deliverables')
           .update({ item_name: newTrimmed })
           .eq('stage_id', sId)
           .eq('item_name', oldTrimmed);
-
-        if (err2) console.error('Erro do Supabase ao atualizar entregáveis:', err2);
 
         await fetchSupabaseTeams();
       } catch (err) {
@@ -1037,9 +1054,17 @@ export const AuthProvider = ({ children }) => {
     const trimmed = detailName.trim();
     if (!trimmed) return;
 
+    // Mark detail as deleted locally so fetchSupabaseTeams will filter it out from initialStages
+    const deletedSaved = JSON.parse(localStorage.getItem('mural_deleted_stage_details') || '{}');
+    const currentDeleted = deletedSaved[sId] || [];
+    if (!currentDeleted.map(n => n.toUpperCase()).includes(trimmed.toUpperCase())) {
+      deletedSaved[sId] = [...currentDeleted, trimmed];
+      localStorage.setItem('mural_deleted_stage_details', JSON.stringify(deletedSaved));
+    }
+
     setStageDetails(prev => {
       const current = prev[sId] || [];
-      const updated = current.filter(item => item !== trimmed);
+      const updated = current.filter(item => item.toUpperCase() !== trimmed.toUpperCase());
       const next = { ...prev, [sId]: updated };
       localStorage.setItem('mural_stage_details', JSON.stringify(next));
       return next;
@@ -1047,7 +1072,7 @@ export const AuthProvider = ({ children }) => {
 
     // Delete associated deliverables
     setDeliverables(prev => {
-      const next = prev.filter(d => !(d.stageId === sId && d.itemName === trimmed));
+      const next = prev.filter(d => !(d.stageId === sId && d.itemName.toUpperCase() === trimmed.toUpperCase()));
       localStorage.setItem('mural_deliverables', JSON.stringify(next));
       return next;
     });
