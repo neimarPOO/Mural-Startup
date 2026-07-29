@@ -42,8 +42,8 @@ export const AuthProvider = ({ children }) => {
         console.warn("Table team_stage_deliverables may not exist yet:", err);
       }
 
-      if (deliverableFetchOk && dbDeliverables.length > 0) {
-        const mapped = dbDeliverables.map(d => ({
+      if (deliverableFetchOk) {
+        const mapped = (dbDeliverables || []).map(d => ({
           teamId: d.team_id,
           stageId: d.stage_id,
           itemName: d.item_name,
@@ -67,20 +67,20 @@ export const AuthProvider = ({ children }) => {
         initialStages.forEach(s => {
           finalStageDetails[s.id] = [...s.details];
           
-          // Adicionar o que está no localStorage
-          if (localSaved[s.id]) {
-            localSaved[s.id].forEach(item => {
-              if (!finalStageDetails[s.id].map(name => name.toUpperCase()).includes(item.toUpperCase())) {
-                finalStageDetails[s.id].push(item);
-              }
-            });
-          }
-          
-          // Adicionar o que veio do Supabase DB
+          // Adicionar o que veio do Supabase DB (Fonte da verdade para todos os usuarios)
           if (!error && data && data.length > 0) {
             data.filter(d => d.stage_id === s.id).forEach(d => {
               if (!finalStageDetails[s.id].map(name => name.toUpperCase()).includes(d.item_name.toUpperCase())) {
                 finalStageDetails[s.id].push(d.item_name);
+              }
+            });
+          }
+          
+          // Fallback para itens locais se Supabase nao tiver a tabela ainda
+          if ((error || !data) && localSaved[s.id]) {
+            localSaved[s.id].forEach(item => {
+              if (!finalStageDetails[s.id].map(name => name.toUpperCase()).includes(item.toUpperCase())) {
+                finalStageDetails[s.id].push(item);
               }
             });
           }
@@ -235,6 +235,17 @@ export const AuthProvider = ({ children }) => {
 
     if (isSupabaseConfigured) {
       fetchSupabaseTeams();
+
+      const channel = supabase
+        .channel('public_mural_changes')
+        .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+          fetchSupabaseTeams();
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     } else {
       loadLocalTeams();
     }
@@ -943,11 +954,16 @@ export const AuthProvider = ({ children }) => {
             stage_id: sId,
             item_name: trimmed
           }], { onConflict: 'stage_id,item_name' });
+
         if (error) {
-          console.error('Erro do Supabase ao inserir legenda:', error);
+          console.error('Erro do Supabase ao inserir tarefa:', error);
+          alert(`Erro do Supabase ao criar tarefa: ${error.message || JSON.stringify(error)}`);
+        } else {
+          await fetchSupabaseTeams();
         }
       } catch (err) {
         console.error('Erro ao salvar nova legenda no Supabase:', err);
+        alert(`Erro ao salvar tarefa no Supabase: ${err.message || JSON.stringify(err)}`);
       }
     }
   };
@@ -981,18 +997,24 @@ export const AuthProvider = ({ children }) => {
     if (isSupabaseConfigured) {
       try {
         // Update custom detail item_name
-        await supabase
+        const { error: err1 } = await supabase
           .from('custom_stage_details')
           .update({ item_name: newTrimmed })
           .eq('stage_id', sId)
           .eq('item_name', oldTrimmed);
 
+        if (err1) console.error('Erro do Supabase ao atualizar legenda:', err1);
+
         // Update deliverables item_name
-        await supabase
+        const { error: err2 } = await supabase
           .from('team_stage_deliverables')
           .update({ item_name: newTrimmed })
           .eq('stage_id', sId)
           .eq('item_name', oldTrimmed);
+
+        if (err2) console.error('Erro do Supabase ao atualizar entregáveis:', err2);
+
+        await fetchSupabaseTeams();
       } catch (err) {
         console.error('Erro ao editar tarefa no Supabase:', err);
       }
@@ -1022,18 +1044,24 @@ export const AuthProvider = ({ children }) => {
     if (isSupabaseConfigured) {
       try {
         // Delete custom detail
-        await supabase
+        const { error: err1 } = await supabase
           .from('custom_stage_details')
           .delete()
           .eq('stage_id', sId)
           .eq('item_name', trimmed);
 
+        if (err1) console.error('Erro do Supabase ao remover legenda:', err1);
+
         // Delete deliverables
-        await supabase
+        const { error: err2 } = await supabase
           .from('team_stage_deliverables')
           .delete()
           .eq('stage_id', sId)
           .eq('item_name', trimmed);
+
+        if (err2) console.error('Erro do Supabase ao remover entregáveis:', err2);
+
+        await fetchSupabaseTeams();
       } catch (err) {
         console.error('Erro ao excluir tarefa no Supabase:', err);
       }
