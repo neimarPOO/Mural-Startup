@@ -55,25 +55,38 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('mural_deliverables', JSON.stringify(mapped));
       }
 
-      // Fetch custom details (only if table exists)
+      // Fetch custom details and deleted details (only if tables exist)
       try {
-        const { data, error } = await supabase
+        const { data: customData, error: customErr } = await supabase
           .from('custom_stage_details')
           .select('*');
-          
-        const deletedSaved = JSON.parse(localStorage.getItem('mural_deleted_stage_details') || '{}');
+
+        let dbDeleted = [];
+        try {
+          const { data: delData } = await supabase
+            .from('deleted_stage_details')
+            .select('*');
+          if (delData) dbDeleted = delData;
+        } catch (e) {
+          // Table deleted_stage_details may not exist in DB yet
+        }
+
+        const localDeleted = JSON.parse(localStorage.getItem('mural_deleted_stage_details') || '{}');
         const finalStageDetails = {};
-        
+
         initialStages.forEach(s => {
           const sId = s.id;
-          const stageDeleted = (deletedSaved[sId] || []).map(n => n.toUpperCase());
+          const dbDeletedForStage = dbDeleted.filter(d => d.stage_id === sId).map(d => d.item_name.toUpperCase());
+          const localDeletedForStage = (localDeleted[sId] || []).map(n => n.toUpperCase());
+
+          const stageDeleted = Array.from(new Set([...dbDeletedForStage, ...localDeletedForStage]));
 
           // Seed with default initial details, excluding any deleted by Admin
           finalStageDetails[sId] = s.details.filter(item => !stageDeleted.includes(item.toUpperCase()));
 
           // Add custom details fetched from Supabase DB
-          if (!error && data && data.length > 0) {
-            data.filter(d => d.stage_id === sId).forEach(d => {
+          if (!customErr && customData && customData.length > 0) {
+            customData.filter(d => d.stage_id === sId).forEach(d => {
               const itemNameUpper = d.item_name.toUpperCase();
               if (!stageDeleted.includes(itemNameUpper) && !finalStageDetails[sId].map(name => name.toUpperCase()).includes(itemNameUpper)) {
                 finalStageDetails[sId].push(d.item_name);
@@ -85,7 +98,7 @@ export const AuthProvider = ({ children }) => {
         setStageDetails(finalStageDetails);
         localStorage.setItem('mural_stage_details', JSON.stringify(finalStageDetails));
       } catch (err) {
-        console.warn("Erro ao buscar custom_stage_details no Supabase:", err);
+        console.warn("Erro ao buscar custom_stage_details/deleted_stage_details no Supabase:", err);
       }
 
       let dbStages = [];
@@ -951,6 +964,15 @@ export const AuthProvider = ({ children }) => {
 
     if (isSupabaseConfigured) {
       try {
+        // Remove from deleted_stage_details DB table if previously marked as deleted
+        try {
+          await supabase
+            .from('deleted_stage_details')
+            .delete()
+            .eq('stage_id', sId)
+            .eq('item_name', trimmed);
+        } catch (e) {}
+
         let { error } = await supabase
           .from('custom_stage_details')
           .upsert([{
@@ -1020,6 +1042,19 @@ export const AuthProvider = ({ children }) => {
 
     if (isSupabaseConfigured) {
       try {
+        // Persist old name as deleted in deleted_stage_details table in Supabase DB
+        try {
+          await supabase
+            .from('deleted_stage_details')
+            .upsert([{ stage_id: sId, item_name: oldTrimmed }], { onConflict: 'stage_id,item_name' });
+        } catch (e) {
+          try {
+            await supabase
+              .from('deleted_stage_details')
+              .insert([{ stage_id: sId, item_name: oldTrimmed }]);
+          } catch (e2) {}
+        }
+
         // Try updating custom detail in DB
         const { data: updatedDetails, error: err1 } = await supabase
           .from('custom_stage_details')
@@ -1096,6 +1131,19 @@ export const AuthProvider = ({ children }) => {
           .eq('item_name', trimmed);
 
         if (err2) console.error('Erro do Supabase ao remover entregáveis:', err2);
+
+        // Persist deletion in deleted_stage_details table in Supabase DB
+        try {
+          await supabase
+            .from('deleted_stage_details')
+            .upsert([{ stage_id: sId, item_name: trimmed }], { onConflict: 'stage_id,item_name' });
+        } catch (e) {
+          try {
+            await supabase
+              .from('deleted_stage_details')
+              .insert([{ stage_id: sId, item_name: trimmed }]);
+          } catch (e2) {}
+        }
 
         await fetchSupabaseTeams();
       } catch (err) {
