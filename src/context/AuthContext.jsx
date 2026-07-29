@@ -67,7 +67,7 @@ export const AuthProvider = ({ children }) => {
         initialStages.forEach(s => {
           finalStageDetails[s.id] = [...s.details];
           
-          // Adicionar o que veio do Supabase DB (Fonte da verdade para todos os usuarios)
+          // 1. Adicionar o que veio do Supabase DB
           if (!error && data && data.length > 0) {
             data.filter(d => d.stage_id === s.id).forEach(d => {
               if (!finalStageDetails[s.id].map(name => name.toUpperCase()).includes(d.item_name.toUpperCase())) {
@@ -76,8 +76,8 @@ export const AuthProvider = ({ children }) => {
             });
           }
           
-          // Fallback para itens locais se Supabase nao tiver a tabela ainda
-          if ((error || !data) && localSaved[s.id]) {
+          // 2. Preservar o que está no localStorage (garante que tarefas locais nunca são apagadas se o Supabase não salvar)
+          if (localSaved[s.id]) {
             localSaved[s.id].forEach(item => {
               if (!finalStageDetails[s.id].map(name => name.toUpperCase()).includes(item.toUpperCase())) {
                 finalStageDetails[s.id].push(item);
@@ -948,12 +948,23 @@ export const AuthProvider = ({ children }) => {
 
     if (isSupabaseConfigured) {
       try {
-        const { error } = await supabase
+        let { error } = await supabase
           .from('custom_stage_details')
           .upsert([{
             stage_id: sId,
             item_name: trimmed
           }], { onConflict: 'stage_id,item_name' });
+
+        if (error) {
+          // Fallback para insert se onConflict falhar por falta de restricao UNIQUE
+          const { error: insertErr } = await supabase
+            .from('custom_stage_details')
+            .insert([{
+              stage_id: sId,
+              item_name: trimmed
+            }]);
+          error = insertErr;
+        }
 
         if (error) {
           console.error('Erro do Supabase ao inserir tarefa:', error);
